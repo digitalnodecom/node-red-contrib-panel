@@ -1,0 +1,693 @@
+<!-- Panel Button Script -->
+<script type="text/javascript">
+    // Add Panel button to Node-RED header
+    (function() {
+        function addPanelButton() {
+            // Check if button already exists
+            if (document.getElementById('red-ui-header-button-panel')) {
+                return;
+            }
+            
+            const deployButton = document.getElementById('red-ui-header-button-deploy');
+            if (deployButton && deployButton.parentElement) {
+                // Create the panel button
+                const panelButton = document.createElement('a');
+                panelButton.id = 'red-ui-header-button-panel';
+                panelButton.className = 'button';
+                panelButton.href = '/panel';
+                panelButton.target = '_blank';
+                panelButton.style.paddingTop = '0';
+                panelButton.style.paddingBottom = '0';
+                panelButton.style.width = '30px';
+                panelButton.style.height = '30px';
+                panelButton.style.display = 'inline-flex';
+                panelButton.style.alignItems = 'center';
+                panelButton.style.justifyContent = 'center';
+                panelButton.innerHTML = '<img src="/panel/node-red-panel.svg" style="width:30px;height:30px;" alt="Panel">';
+                
+                // Insert before the deploy button
+                deployButton.parentElement.insertBefore(panelButton, deployButton);
+            } else {
+                // If deploy button not found yet, try again
+                setTimeout(addPanelButton, 500);
+            }
+        }
+        
+        // Try to add button when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', addPanelButton);
+        } else {
+            // DOM already loaded
+            setTimeout(addPanelButton, 100);
+        }
+    })();
+</script>
+
+<!-- Panel Query Node -->
+<script type="text/javascript">
+    RED.nodes.registerType('panel-query', {
+        category: 'storage',
+        color: '#a6bbcf',
+        defaults: {
+            name: { value: "" },
+            collection: { value: "", required: false },
+            operation: { value: "find", required: false },
+            query: { value: "{}" },
+            useMsg: { value: false }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "db.svg",
+        label: function() {
+            return this.name || `${this.operation || 'query'} ${this.collection || 'collection'}` || "panel query";
+        },
+        oneditprepare: function() {
+            const node = this;
+            
+            // Initialize typed input for query
+            $("#node-input-query").typedInput({
+                type: "json",
+                types: ["json"]
+            });
+            
+            // Load collections for dropdown
+            function loadCollections() {
+                $.getJSON('/panel/node-collections')
+                    .done(function(collections) {
+                        const select = $("#node-input-collection");
+                        select.empty();
+                        select.append('<option value="">Select collection...</option>');
+                        collections.forEach(function(collection) {
+                            select.append(`<option value="${collection}">${collection}</option>`);
+                        });
+                        if (node.collection) {
+                            select.val(node.collection);
+                        }
+                    })
+                    .fail(function() {
+                        console.warn('Could not load collections for dropdown');
+                    });
+            }
+            
+            // Load collections on dialog open
+            loadCollections();
+            
+            // Handle useMsg checkbox changes
+            function toggleMsgOptions() {
+                const useMsg = $("#node-input-useMsg").prop('checked');
+                if (useMsg) {
+                    $("#static-config").hide();
+                    $("#msg-config").show();
+                } else {
+                    $("#static-config").show();
+                    $("#msg-config").hide();
+                }
+            }
+            
+            $("#node-input-useMsg").change(toggleMsgOptions);
+            toggleMsgOptions(); // Initial state
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="panel-query">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    
+    <div class="form-row">
+        <label for="node-input-useMsg"><i class="fa fa-exchange"></i> Use msg properties</label>
+        <input type="checkbox" id="node-input-useMsg" style="display:inline-block; width:20px; vertical-align:baseline;">
+        <span style="margin-left:10px;">Override configuration with msg.collection, msg.operation, msg.query</span>
+    </div>
+    
+    <div id="static-config">
+        <div class="form-row">
+            <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
+            <select id="node-input-collection" style="width:70%;">
+                <option value="">Loading collections...</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <label for="node-input-operation"><i class="fa fa-cog"></i> Operation</label>
+            <select id="node-input-operation">
+                <option value="find">Find All</option>
+                <option value="findOne">Find One</option>
+                <option value="count">Count</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <label for="node-input-query"><i class="fa fa-filter"></i> Query</label>
+            <input type="text" id="node-input-query" placeholder='{"id": 1}'>
+        </div>
+    </div>
+    
+    <div id="msg-config" style="display:none;">
+        <div class="form-row">
+            <p style="margin:10px 0; padding:10px; background:#f0f0f0; border-radius:3px;">
+                <i class="fa fa-info-circle"></i> When using msg properties:
+                <br>• <code>msg.collection</code> - Collection name
+                <br>• <code>msg.operation</code> - Operation type (find, findOne, count)
+                <br>• <code>msg.query</code> - Query parameters object
+            </p>
+        </div>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="panel-query">
+    <p>Query data from a Panel collection.</p>
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>query <span class="property-type">object</span></dt>
+        <dd>Optional query parameters to override node configuration</dd>
+    </dl>
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object | array</span></dt>
+        <dd>The query results</dd>
+    </dl>
+</script>
+
+<!-- Panel Insert Node -->
+<script type="text/javascript">
+    RED.nodes.registerType('panel-insert', {
+        category: 'storage',
+        color: '#a6bbcf',
+        defaults: {
+            name: { value: "" },
+            collection: { value: "", required: false },
+            useMsg: { value: false },
+            data: { value: "{\"title\": \"Sample Article\", \"content\": \"Lorem ipsum...\", \"published\": true}" }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "db.svg",
+        label: function() {
+            return this.name || `insert ${this.collection || 'collection'}` || "panel insert";
+        },
+        oneditprepare: function() {
+            const node = this;
+            
+            // Load collections for dropdown
+            function loadCollections() {
+                $.getJSON('/panel/node-collections')
+                    .done(function(collections) {
+                        const select = $("#node-input-collection");
+                        select.empty();
+                        select.append('<option value="">Select collection...</option>');
+                        collections.forEach(function(collection) {
+                            select.append(`<option value="${collection}">${collection}</option>`);
+                        });
+                        if (node.collection) {
+                            select.val(node.collection);
+                        }
+                    })
+                    .fail(function() {
+                        console.warn('Could not load collections for dropdown');
+                    });
+            }
+            
+            // Load collections on dialog open
+            loadCollections();
+            
+            // Initialize typed input for data (insert node)
+            if ($("#node-input-data").length) {
+                $("#node-input-data").typedInput({
+                    type: "json",
+                    types: ["json"]
+                });
+            }
+            
+            // Handle useMsg checkbox changes
+            function toggleMsgOptions() {
+                const useMsg = $("#node-input-useMsg").prop('checked');
+                if (useMsg) {
+                    $("#static-config").hide();
+                    $("#msg-config").show();
+                } else {
+                    $("#static-config").show();
+                    $("#msg-config").hide();
+                }
+            }
+            
+            $("#node-input-useMsg").change(toggleMsgOptions);
+            toggleMsgOptions(); // Initial state
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="panel-insert">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    
+    <div class="form-row">
+        <label for="node-input-useMsg"><i class="fa fa-exchange"></i> Use msg properties</label>
+        <input type="checkbox" id="node-input-useMsg" style="display:inline-block; width:20px; vertical-align:baseline;">
+        <span style="margin-left:10px;">Override configuration with msg.collection</span>
+    </div>
+    
+    <div id="static-config">
+        <div class="form-row">
+            <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
+            <select id="node-input-collection" style="width:70%;">
+                <option value="">Loading collections...</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <label for="node-input-data"><i class="fa fa-edit"></i> Data (optional)</label>
+            <input type="text" id="node-input-data" placeholder='{"title": "Sample Article", "content": "Lorem ipsum...", "published": true}'>
+            <div class="form-tips">Optional: Static data for testing. msg.payload takes precedence.</div>
+        </div>
+    </div>
+    
+    <div id="msg-config" style="display:none;">
+        <div class="form-row">
+            <p style="margin:10px 0; padding:10px; background:#f0f0f0; border-radius:3px;">
+                <i class="fa fa-info-circle"></i> When using msg properties:
+                <br>• <code>msg.collection</code> - Collection name
+                <br>• <code>msg.payload</code> - Data to insert
+                <br>• If no msg.payload, uses configured static data
+            </p>
+        </div>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="panel-insert">
+    <p>Insert a new record into a Panel collection.</p>
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>The data to insert</dd>
+    </dl>
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload.id <span class="property-type">number</span></dt>
+        <dd>The ID of the inserted record</dd>
+        <dt>payload.changes <span class="property-type">number</span></dt>
+        <dd>Number of rows affected</dd>
+    </dl>
+</script>
+
+<!-- Panel Update Node -->
+<script type="text/javascript">
+    RED.nodes.registerType('panel-update', {
+        category: 'storage',
+        color: '#a6bbcf',
+        defaults: {
+            name: { value: "" },
+            collection: { value: "", required: false },
+            useMsg: { value: false },
+            data: { value: "{\"id\": 1, \"title\": \"Updated Title\", \"published\": false}" }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "db.svg",
+        label: function() {
+            return this.name || `update ${this.collection || 'collection'}` || "panel update";
+        },
+        oneditprepare: function() {
+            const node = this;
+            
+            // Load collections for dropdown
+            function loadCollections() {
+                $.getJSON('/panel/node-collections')
+                    .done(function(collections) {
+                        const select = $("#node-input-collection");
+                        select.empty();
+                        select.append('<option value="">Select collection...</option>');
+                        collections.forEach(function(collection) {
+                            select.append(`<option value="${collection}">${collection}</option>`);
+                        });
+                        if (node.collection) {
+                            select.val(node.collection);
+                        }
+                    })
+                    .fail(function() {
+                        console.warn('Could not load collections for dropdown');
+                    });
+            }
+            
+            // Load collections on dialog open
+            loadCollections();
+            
+            // Initialize typed input for data (update node)
+            if ($("#node-input-data").length) {
+                $("#node-input-data").typedInput({
+                    type: "json",
+                    types: ["json"]
+                });
+            }
+            
+            // Handle useMsg checkbox changes
+            function toggleMsgOptions() {
+                const useMsg = $("#node-input-useMsg").prop('checked');
+                if (useMsg) {
+                    $("#static-config").hide();
+                    $("#msg-config").show();
+                } else {
+                    $("#static-config").show();
+                    $("#msg-config").hide();
+                }
+            }
+            
+            $("#node-input-useMsg").change(toggleMsgOptions);
+            toggleMsgOptions(); // Initial state
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="panel-update">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    
+    <div class="form-row">
+        <label for="node-input-useMsg"><i class="fa fa-exchange"></i> Use msg properties</label>
+        <input type="checkbox" id="node-input-useMsg" style="display:inline-block; width:20px; vertical-align:baseline;">
+        <span style="margin-left:10px;">Override configuration with msg.collection</span>
+    </div>
+    
+    <div id="static-config">
+        <div class="form-row">
+            <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
+            <select id="node-input-collection" style="width:70%;">
+                <option value="">Loading collections...</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <label for="node-input-data"><i class="fa fa-edit"></i> Data (optional)</label>
+            <input type="text" id="node-input-data" placeholder='{"id": 1, "title": "Updated Title", "published": false}'>
+            <div class="form-tips">Optional: Static data for testing. msg.payload takes precedence.</div>
+        </div>
+    </div>
+    
+    <div id="msg-config" style="display:none;">
+        <div class="form-row">
+            <p style="margin:10px 0; padding:10px; background:#f0f0f0; border-radius:3px;">
+                <i class="fa fa-info-circle"></i> When using msg properties:
+                <br>• <code>msg.collection</code> - Collection name
+                <br>• <code>msg.payload</code> - Object with id and fields to update
+                <br>• If no msg.payload, uses configured static data
+            </p>
+        </div>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="panel-update">
+    <p>Update a record in a Panel collection.</p>
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>Object containing id and fields to update</dd>
+    </dl>
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload.id <span class="property-type">number</span></dt>
+        <dd>The ID of the updated record</dd>
+        <dt>payload.changes <span class="property-type">number</span></dt>
+        <dd>Number of rows affected</dd>
+    </dl>
+</script>
+
+<!-- Panel Delete Node -->
+<script type="text/javascript">
+    RED.nodes.registerType('panel-delete', {
+        category: 'storage',
+        color: '#a6bbcf',
+        defaults: {
+            name: { value: "" },
+            collection: { value: "", required: false },
+            useMsg: { value: false },
+            data: { value: "5" }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "db.svg",
+        label: function() {
+            return this.name || `delete ${this.collection || 'collection'}` || "panel delete";
+        },
+        oneditprepare: function() {
+            const node = this;
+            
+            // Load collections for dropdown
+            function loadCollections() {
+                $.getJSON('/panel/node-collections')
+                    .done(function(collections) {
+                        const select = $("#node-input-collection");
+                        select.empty();
+                        select.append('<option value="">Select collection...</option>');
+                        collections.forEach(function(collection) {
+                            select.append(`<option value="${collection}">${collection}</option>`);
+                        });
+                        if (node.collection) {
+                            select.val(node.collection);
+                        }
+                    })
+                    .fail(function() {
+                        console.warn('Could not load collections for dropdown');
+                    });
+            }
+            
+            // Load collections on dialog open
+            loadCollections();
+            
+            // Handle useMsg checkbox changes
+            function toggleMsgOptions() {
+                const useMsg = $("#node-input-useMsg").prop('checked');
+                if (useMsg) {
+                    $("#static-config").hide();
+                    $("#msg-config").show();
+                } else {
+                    $("#static-config").show();
+                    $("#msg-config").hide();
+                }
+            }
+            
+            $("#node-input-useMsg").change(toggleMsgOptions);
+            toggleMsgOptions(); // Initial state
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="panel-delete">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    
+    <div class="form-row">
+        <label for="node-input-useMsg"><i class="fa fa-exchange"></i> Use msg properties</label>
+        <input type="checkbox" id="node-input-useMsg" style="display:inline-block; width:20px; vertical-align:baseline;">
+        <span style="margin-left:10px;">Override configuration with msg.collection</span>
+    </div>
+    
+    <div id="static-config">
+        <div class="form-row">
+            <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
+            <select id="node-input-collection" style="width:70%;">
+                <option value="">Loading collections...</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <label for="node-input-data"><i class="fa fa-key"></i> Record ID (optional)</label>
+            <input type="text" id="node-input-data" placeholder="5">
+            <div class="form-tips">Optional: Static record ID for testing. msg.payload takes precedence.</div>
+        </div>
+    </div>
+    
+    <div id="msg-config" style="display:none;">
+        <div class="form-row">
+            <p style="margin:10px 0; padding:10px; background:#f0f0f0; border-radius:3px;">
+                <i class="fa fa-info-circle"></i> When using msg properties:
+                <br>• <code>msg.collection</code> - Collection name
+                <br>• <code>msg.payload</code> - Record ID or object with id property
+                <br>• If no msg.payload, uses configured static record ID
+            </p>
+        </div>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="panel-delete">
+    <p>Delete a record from a Panel collection.</p>
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">number | object</span></dt>
+        <dd>The record ID or object with id property</dd>
+    </dl>
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload.id <span class="property-type">number</span></dt>
+        <dd>The ID of the deleted record</dd>
+        <dt>payload.changes <span class="property-type">number</span></dt>
+        <dd>Number of rows affected</dd>
+    </dl>
+</script>
+
+<!-- Panel Event Listener Node -->
+<script type="text/javascript">
+    RED.nodes.registerType('panel-event-listener', {
+        category: 'storage',
+        color: '#a6bbcf',
+        defaults: {
+            name: { value: "" },
+            collection: { value: "", required: false },
+            eventTypes: { value: ["INSERT", "UPDATE", "DELETE"] },
+            pollingInterval: { value: 10 },
+            batchSize: { value: 10 },
+            autoAcknowledge: { value: true }
+        },
+        inputs: 0,
+        outputs: 1,
+        icon: "db.svg",
+        label: function() {
+            return this.name || `listen ${this.collection || 'events'}` || "event listener";
+        },
+        oneditprepare: function() {
+            const node = this;
+            
+            // Load event-enabled collections for dropdown
+            function loadEventCollections() {
+                $.getJSON('/panel/event-collections')
+                    .done(function(collections) {
+                        const select = $("#node-input-collection");
+                        select.empty();
+                        select.append('<option value="">Select collection...</option>');
+                        collections.forEach(function(collection) {
+                            select.append(`<option value="${collection}">${collection}</option>`);
+                        });
+                        if (node.collection) {
+                            select.val(node.collection);
+                        }
+                    })
+                    .fail(function() {
+                        console.warn('Could not load event-enabled collections for dropdown');
+                        $("#node-input-collection").append('<option value="">No event-enabled collections found</option>');
+                    });
+            }
+            
+            // Load collections on dialog open
+            loadEventCollections();
+            
+            // Initialize event type checkboxes
+            const eventTypes = node.eventTypes || ["INSERT", "UPDATE", "DELETE"];
+            ["INSERT", "UPDATE", "DELETE"].forEach(function(eventType) {
+                $("#node-input-eventType-" + eventType).prop('checked', eventTypes.includes(eventType));
+            });
+            
+            // Update eventTypes array when checkboxes change
+            function updateEventTypes() {
+                const selectedTypes = [];
+                ["INSERT", "UPDATE", "DELETE"].forEach(function(eventType) {
+                    if ($("#node-input-eventType-" + eventType).prop('checked')) {
+                        selectedTypes.push(eventType);
+                    }
+                });
+                node.eventTypes = selectedTypes;
+            }
+            
+            $("#node-input-eventType-INSERT, #node-input-eventType-UPDATE, #node-input-eventType-DELETE").change(updateEventTypes);
+            
+            // Initialize sliders with display updates
+            $("#node-input-pollingInterval").val(node.pollingInterval || 10);
+            $("#polling-interval-display").text(node.pollingInterval || 10);
+            $("#node-input-pollingInterval").on('input', function() {
+                $("#polling-interval-display").text($(this).val());
+            });
+            
+            $("#node-input-batchSize").val(node.batchSize || 10);
+            $("#batch-size-display").text(node.batchSize || 10);
+            $("#node-input-batchSize").on('input', function() {
+                $("#batch-size-display").text($(this).val());
+            });
+            
+            $("#node-input-autoAcknowledge").prop('checked', node.autoAcknowledge !== false);
+        },
+        oneditsave: function() {
+            // Save event types
+            const selectedTypes = [];
+            ["INSERT", "UPDATE", "DELETE"].forEach(function(eventType) {
+                if ($("#node-input-eventType-" + eventType).prop('checked')) {
+                    selectedTypes.push(eventType);
+                }
+            });
+            this.eventTypes = selectedTypes;
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="panel-event-listener">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    
+    <div class="form-row">
+        <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
+        <select id="node-input-collection" style="width:70%;">
+            <option value="">Loading event-enabled collections...</option>
+        </select>
+    </div>
+    
+    <div class="form-row">
+        <label><i class="fa fa-bell"></i> Event Types</label>
+        <div style="margin-left: 110px;">
+            <label style="display: inline-block; margin-right: 15px;">
+                <input type="checkbox" id="node-input-eventType-INSERT" style="margin-right: 5px;">
+                INSERT
+            </label>
+            <label style="display: inline-block; margin-right: 15px;">
+                <input type="checkbox" id="node-input-eventType-UPDATE" style="margin-right: 5px;">
+                UPDATE
+            </label>
+            <label style="display: inline-block;">
+                <input type="checkbox" id="node-input-eventType-DELETE" style="margin-right: 5px;">
+                DELETE
+            </label>
+        </div>
+    </div>
+    
+    <div class="form-row">
+        <label for="node-input-pollingInterval"><i class="fa fa-clock-o"></i> Polling Interval (seconds)</label>
+        <input type="range" id="node-input-pollingInterval" min="5" max="60" step="5" style="width: 200px;">
+        <span id="polling-interval-display">10</span>
+    </div>
+    
+    <div class="form-row">
+        <label for="node-input-batchSize"><i class="fa fa-list"></i> Batch Size</label>
+        <input type="range" id="node-input-batchSize" min="1" max="50" step="1" style="width: 200px;">
+        <span id="batch-size-display">10</span>
+    </div>
+    
+    <div class="form-row">
+        <label for="node-input-autoAcknowledge"><i class="fa fa-check"></i> Auto-acknowledge</label>
+        <input type="checkbox" id="node-input-autoAcknowledge" style="display:inline-block; width:20px; vertical-align:baseline;">
+        <span style="margin-left:10px;">Automatically mark events as processed</span>
+    </div>
+    
+    <div class="form-tips">
+        <p><strong>Note:</strong> Only collections with events enabled will appear in the dropdown.</p>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="panel-event-listener">
+    <p>Listen for database events from Panel collections with events enabled.</p>
+    <h3>Configuration</h3>
+    <ul>
+        <li><strong>Collection</strong>: Select from collections that have events enabled</li>
+        <li><strong>Event Types</strong>: Choose which events to listen for (INSERT, UPDATE, DELETE)</li>
+        <li><strong>Polling Interval</strong>: How often to check for new events (5-60 seconds)</li>
+        <li><strong>Batch Size</strong>: Maximum number of events to process at once (1-50)</li>
+        <li><strong>Auto-acknowledge</strong>: Automatically mark events as processed</li>
+    </ul>
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>Event data with eventType, collection, recordId, oldData, newData, timestamp</dd>
+        <dt>topic <span class="property-type">string</span></dt>
+        <dd>Event topic in format "panel/events/collection_name"</dd>
+    </dl>
+</script>

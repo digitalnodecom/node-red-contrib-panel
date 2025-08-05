@@ -1,0 +1,10 @@
+node_modules/
+*.log
+.DS_Store
+lib/admin/dist/
+lib/admin/node_modules/
+panel.db
+.env
+.vscode/
+*.sqlite
+*.db-journal

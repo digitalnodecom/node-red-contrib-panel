@@ -1,0 +1,285 @@
+[
+    {
+        "id": "e1a2b3c4",
+        "type": "tab",
+        "label": "Panel CRUD Example",
+        "disabled": false,
+        "info": "Example flow demonstrating Node-RED Panel plugin CRUD operations"
+    },
+    {
+        "id": "inject-create",
+        "type": "inject",
+        "z": "e1a2b3c4",
+        "name": "Create User",
+        "props": [
+            {
+                "p": "payload",
+                "v": "{\"name\":\"John Doe\",\"email\":\"john@example.com\",\"age\":30,\"active\":true}",
+                "vt": "json"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 130,
+        "y": 80,
+        "wires": [["panel-insert-user"]]
+    },
+    {
+        "id": "panel-insert-user",
+        "type": "panel-insert",
+        "z": "e1a2b3c4",
+        "name": "Insert User",
+        "collection": "users",
+        "x": 330,
+        "y": 80,
+        "wires": [["debug-create", "store-user-id"]]
+    },
+    {
+        "id": "debug-create",
+        "type": "debug",
+        "z": "e1a2b3c4",
+        "name": "Create Result",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 550,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "store-user-id",
+        "type": "change",
+        "z": "e1a2b3c4",
+        "name": "Store User ID",
+        "rules": [
+            {
+                "t": "set",
+                "p": "userId",
+                "pt": "flow",
+                "to": "payload.id",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 550,
+        "y": 120,
+        "wires": [[]]
+    },
+    {
+        "id": "inject-query-all",
+        "type": "inject",
+        "z": "e1a2b3c4",
+        "name": "Query All Users",
+        "props": [
+            {
+                "p": "payload",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 140,
+        "y": 180,
+        "wires": [["panel-query-all"]]
+    },
+    {
+        "id": "panel-query-all",
+        "type": "panel-query",
+        "z": "e1a2b3c4",
+        "name": "Find All Users",
+        "collection": "users",
+        "operation": "find",
+        "query": "{}",
+        "x": 340,
+        "y": 180,
+        "wires": [["debug-query-all"]]
+    },
+    {
+        "id": "debug-query-all",
+        "type": "debug",
+        "z": "e1a2b3c4",
+        "name": "All Users",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 540,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "inject-query-one",
+        "type": "inject",
+        "z": "e1a2b3c4",
+        "name": "Query One User",
+        "props": [
+            {
+                "p": "query.id",
+                "v": "userId",
+                "vt": "flow"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 140,
+        "y": 240,
+        "wires": [["panel-query-one"]]
+    },
+    {
+        "id": "panel-query-one",
+        "type": "panel-query",
+        "z": "e1a2b3c4",
+        "name": "Find One User",
+        "collection": "users",
+        "operation": "findOne",
+        "query": "{}",
+        "x": 340,
+        "y": 240,
+        "wires": [["debug-query-one"]]
+    },
+    {
+        "id": "debug-query-one",
+        "type": "debug",
+        "z": "e1a2b3c4",
+        "name": "One User",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 540,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "inject-update",
+        "type": "inject",
+        "z": "e1a2b3c4",
+        "name": "Update User",
+        "props": [
+            {
+                "p": "payload",
+                "vt": "jsonata",
+                "v": "{\n    \"id\": $flowContext(\"userId\"),\n    \"name\": \"Jane Doe\",\n    \"email\": \"jane@example.com\",\n    \"age\": 25\n}"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 130,
+        "y": 340,
+        "wires": [["panel-update-user"]]
+    },
+    {
+        "id": "panel-update-user",
+        "type": "panel-update",
+        "z": "e1a2b3c4",
+        "name": "Update User",
+        "collection": "users",
+        "x": 330,
+        "y": 340,
+        "wires": [["debug-update"]]
+    },
+    {
+        "id": "debug-update",
+        "type": "debug",
+        "z": "e1a2b3c4",
+        "name": "Update Result",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 550,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "inject-delete",
+        "type": "inject",
+        "z": "e1a2b3c4",
+        "name": "Delete User",
+        "props": [
+            {
+                "p": "payload.id",
+                "v": "userId",
+                "vt": "flow"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 130,
+        "y": 400,
+        "wires": [["panel-delete-user"]]
+    },
+    {
+        "id": "panel-delete-user",
+        "type": "panel-delete",
+        "z": "e1a2b3c4",
+        "name": "Delete User",
+        "collection": "users",
+        "x": 330,
+        "y": 400,
+        "wires": [["debug-delete"]]
+    },
+    {
+        "id": "debug-delete",
+        "type": "debug",
+        "z": "e1a2b3c4",
+        "name": "Delete Result",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 550,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "comment-1",
+        "type": "comment",
+        "z": "e1a2b3c4",
+        "name": "Panel CRUD Operations",
+        "info": "This flow demonstrates all CRUD operations:\n\n1. Create: Insert a new user\n2. Read: Query all users or find one by ID\n3. Update: Update user data\n4. Delete: Remove a user\n\nFirst, use the admin panel at /panel to create a 'users' collection with fields:\n- name (text, required)\n- email (email, required)\n- age (number)\n- active (boolean)",
+        "x": 150,
+        "y": 40,
+        "wires": []
+    }
+]

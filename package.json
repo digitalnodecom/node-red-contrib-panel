@@ -1,0 +1,50 @@
+{
+  "name": "node-red-contrib-panel",
+  "version": "1.0.0",
+  "description": "A Node-RED plugin with PocketBase-like admin panel backed by SQLite",
+  "keywords": [
+    "node-red",
+    "sqlite",
+    "database",
+    "admin",
+    "panel",
+    "crud"
+  ],
+  "author": "",
+  "license": "MIT",
+  "node-red": {
+    "version": ">=2.0.0",
+    "nodes": {
+      "panel": "lib/panel.js"
+    }
+  },
+  "main": "lib/panel.js",
+  "scripts": {
+    "dev": "npm run dev:admin",
+    "dev:admin": "cd lib/admin && npm run dev",
+    "build": "npm run build:admin",
+    "build:admin": "cd lib/admin && npm run build",
+    "test": "mocha test/test-*.js",
+    "watch": "nodemon --watch . --ignore node_modules --exec \"sh -c 'npm run build && pm2 restart node-red'\""
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "joi": "^17.11.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "chai": "^4.3.10",
+    "mocha": "^10.2.0",
+    "supertest": "^7.1.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
