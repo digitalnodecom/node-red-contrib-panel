@@ -23,7 +23,7 @@
                 panelButton.style.display = 'inline-flex';
                 panelButton.style.alignItems = 'center';
                 panelButton.style.justifyContent = 'center';
-                panelButton.innerHTML = '<img src="/panel/node-red-panel.svg" style="width:30px;height:30px;" alt="Panel">';
+                panelButton.innerHTML = '<svg width="30" height="30" viewBox="0 0 448 448" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M392 0H56C25.0721 0 0 25.0721 0 56V392C0 422.928 25.0721 448 56 448H392C422.928 448 448 422.928 448 392V56C448 25.0721 422.928 0 392 0Z" fill="#8F0000"/><path d="M224 90.1875C156.292 90.1875 103.25 121.13 103.25 160.625V281.375C103.25 320.87 156.292 351.812 224 351.812C291.708 351.812 344.75 320.87 344.75 281.375V160.625C344.75 121.13 291.708 90.1875 224 90.1875ZM324.625 221C324.625 233.1 314.713 245.439 297.444 254.86C277.998 265.464 251.911 271.312 224 271.312C196.089 271.312 170.002 265.464 150.556 254.86C133.287 245.439 123.375 233.1 123.375 221V200.07C144.833 218.937 181.524 231.062 224 231.062C266.476 231.062 303.167 218.887 324.625 200.07V221ZM150.556 126.765C170.002 116.161 196.089 110.312 224 110.312C251.911 110.312 277.998 116.161 297.444 126.765C314.713 136.186 324.625 148.525 324.625 160.625C324.625 172.725 314.713 185.064 297.444 194.485C277.998 205.089 251.911 210.938 224 210.938C196.089 210.938 170.002 205.089 150.556 194.485C133.287 185.064 123.375 172.725 123.375 160.625C123.375 148.525 133.287 136.186 150.556 126.765ZM297.444 315.235C277.998 325.839 251.911 331.688 224 331.688C196.089 331.688 170.002 325.839 150.556 315.235C133.287 305.814 123.375 293.475 123.375 281.375V260.445C144.833 279.312 181.524 291.438 224 291.438C266.476 291.438 303.167 279.262 324.625 260.445V281.375C324.625 293.475 314.713 305.814 297.444 315.235Z" fill="white"/></svg>';
                 
                 // Insert before the deploy button
                 deployButton.parentElement.insertBefore(panelButton, deployButton);
@@ -70,9 +70,28 @@
                 types: ["json"]
             });
             
+            // Panel internal token for authentication
+            let panelInternalToken = null;
+            
+            // Load internal token
+            function loadInternalToken() {
+                return $.getJSON('/panel/internal-token')
+                    .done(function(response) {
+                        panelInternalToken = response.token;
+                    })
+                    .fail(function() {
+                        console.warn('Could not load panel internal token');
+                    });
+            }
+            
             // Load collections for dropdown
             function loadCollections() {
-                $.getJSON('/panel/node-collections')
+                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                $.ajax({
+                    url: '/panel/node-collections',
+                    type: 'GET',
+                    headers: headers
+                })
                     .done(function(collections) {
                         const select = $("#node-input-collection");
                         select.empty();
@@ -89,8 +108,10 @@
                     });
             }
             
-            // Load collections on dialog open
-            loadCollections();
+            // Load internal token first, then collections
+            loadInternalToken().always(function() {
+                loadCollections();
+            });
             
             // Handle useMsg checkbox changes
             function toggleMsgOptions() {
@@ -527,6 +548,304 @@
     </dl>
 </script>
 
+<!-- Panel Upsert Node -->
+<script type="text/javascript">
+    RED.nodes.registerType('panel-upsert', {
+        category: 'storage',
+        color: '#a6bbcf',
+        defaults: {
+            name: { value: "" },
+            collection: { value: "", required: false },
+            matchFields: { value: [] },
+            mode: { value: "upsert" },
+            useMsg: { value: false },
+            data: { value: '{"email": "user@example.com", "name": "John Doe", "role": "admin"}' }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "arrow-in.png",
+        label: function() {
+            if (this.name) {
+                return this.name;
+            }
+            if (this.collection && this.matchFields && this.matchFields.length > 0) {
+                const mode = this.mode === 'upsert' ? '↕' : this.mode === 'updateOnly' ? '↑' : '↓';
+                return `${mode} ${this.collection}[${this.matchFields.join(',')}]`;
+            }
+            return "upsert";
+        },
+        labelStyle: function() {
+            return this.name ? "node_label_italic" : "";
+        },
+        oneditprepare: function() {
+            const node = this;
+            
+            // Load collections
+            loadCollections();
+            
+            // Collection change handler
+            $('#node-input-collection').on('change', function() {
+                const collection = $(this).val();
+                if (collection) {
+                    loadCollectionFields(collection);
+                    $('#matchFields-section, #operation-mode-section').show();
+                } else {
+                    $('#matchFields-section, #operation-mode-section, #match-preview-section').hide();
+                }
+            });
+            
+            // Field selection change handler
+            $(document).on('change', '#field-checkboxes input[type="checkbox"]', function() {
+                updateMatchPreview();
+                togglePreviewSection();
+            });
+            
+            // Mode change handler
+            $('input[name="node-input-mode"]').on('change', function() {
+                updateMatchPreview();
+            });
+            
+            function loadCollections() {
+                $.getJSON('/panel/node-collections')
+                    .done(function(collections) {
+                        const select = $('#node-input-collection');
+                        select.empty().append('<option value="">Select collection...</option>');
+                        collections.forEach(function(collection) {
+                            const selected = collection === node.collection ? 'selected' : '';
+                            select.append(`<option value="${collection}" ${selected}>${collection}</option>`);
+                        });
+                        
+                        // Trigger change if collection was pre-selected
+                        if (node.collection) {
+                            select.trigger('change');
+                        }
+                    })
+                    .fail(function() {
+                        console.error('Failed to load collections');
+                    });
+            }
+            
+            function loadCollectionFields(collection) {
+                $.getJSON(`/panel/api/collections/${collection}`)
+                    .done(function(data) {
+                        const container = $('#field-checkboxes');
+                        container.empty();
+                        
+                        data.fields.forEach(function(field) {
+                            const uniqueIcon = field.unique ? ' <i class="fa fa-key" style="color: gold; margin-left: 4px;" title="Unique field"></i>' : '';
+                            const indexIcon = field.indexable ? ' <i class="fa fa-flash" style="color: green; margin-left: 4px;" title="Indexed field"></i>' : '';
+                            
+                            const checked = node.matchFields && node.matchFields.includes(field.name) ? 'checked' : '';
+                            
+                            container.append(`
+                                <label style="display: block; padding: 4px 0; cursor: pointer;">
+                                    <input type="checkbox" value="${field.name}" ${checked} style="margin-right: 8px;">
+                                    <strong>${field.name}</strong> 
+                                    <span style="color: #666;">(${field.type})</span>
+                                    ${uniqueIcon}${indexIcon}
+                                </label>
+                            `);
+                        });
+                        
+                        updateMatchPreview();
+                        togglePreviewSection();
+                    })
+                    .fail(function() {
+                        console.error('Failed to load collection fields');
+                    });
+            }
+            
+            function updateMatchPreview() {
+                const selectedFields = $('#field-checkboxes input:checked').map(function() {
+                    return $(this).val();
+                }).get();
+                
+                const mode = $('input[name="node-input-mode"]:checked').val();
+                const collection = $('#node-input-collection').val();
+                
+                if (selectedFields.length > 0 && collection) {
+                    let preview = `INSERT INTO ${collection} (...) VALUES (...)\n`;
+                    preview += `ON CONFLICT(${selectedFields.join(', ')}) `;
+                    
+                    switch(mode) {
+                        case 'upsert':
+                            preview += `DO UPDATE SET ...`;
+                            break;
+                        case 'updateOnly':
+                            preview += `DO UPDATE SET ... (only if exists)`;
+                            break;
+                        case 'insertOnly':
+                            preview += `DO NOTHING`;
+                            break;
+                    }
+                    
+                    $('#match-preview').text(preview);
+                }
+            }
+            
+            function togglePreviewSection() {
+                const hasSelection = $('#field-checkboxes input:checked').length > 0;
+                $('#match-preview-section').toggle(hasSelection);
+            }
+        },
+        
+        oneditsave: function() {
+            // Save selected match fields
+            const selectedFields = $('#field-checkboxes input:checked').map(function() {
+                return $(this).val();
+            }).get();
+            this.matchFields = selectedFields;
+            
+            // Save selected mode
+            this.mode = $('input[name="node-input-mode"]:checked').val();
+        }
+    });
+</script>
+<script type="text/html" data-template-name="panel-upsert">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    
+    <div class="form-row">
+        <label for="node-input-useMsg"><i class="fa fa-exchange"></i> Use msg properties</label>
+        <input type="checkbox" id="node-input-useMsg" style="display:inline-block; width:20px; vertical-align:baseline;">
+        <span style="margin-left:10px;">Override configuration with msg.collection, msg.matchFields, msg.mode</span>
+    </div>
+    
+    <div class="form-row">
+        <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
+        <select id="node-input-collection" style="width: 70%;">
+            <option value="">Select collection...</option>
+        </select>
+    </div>
+
+    <!-- Dynamic Match Fields Selector -->
+    <div class="form-row" id="matchFields-section" style="display:none;">
+        <label><i class="fa fa-key"></i> Match Fields</label>
+        <div style="margin-left: 105px; border: 1px solid #ccc; padding: 10px; border-radius: 3px; background-color: #f9f9f9;">
+            <div id="field-checkboxes" style="max-height: 150px; overflow-y: auto;">
+                <!-- Dynamically populated field checkboxes -->
+            </div>
+            <div style="margin-top: 8px; font-size: 11px; color: #666;">
+                <i class="fa fa-info-circle"></i> Select one or more fields to match existing records. Records with matching values in ALL selected fields will be updated.
+            </div>
+        </div>
+    </div>
+
+    <!-- Operation Mode with Visual Icons -->
+    <div class="form-row" id="operation-mode-section" style="display:none;">
+        <label><i class="fa fa-cogs"></i> Operation</label>
+        <div style="margin-left: 105px;">
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <label style="display: flex; align-items: center; cursor: pointer; padding: 4px 0;">
+                    <input type="radio" name="node-input-mode" value="upsert" checked style="margin-right: 8px;">
+                    <i class="fa fa-refresh" style="color: #4CAF50; margin-right: 8px; width: 16px;"></i>
+                    <strong>Upsert</strong> - Insert new or update existing records
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer; padding: 4px 0;">
+                    <input type="radio" name="node-input-mode" value="updateOnly" style="margin-right: 8px;">
+                    <i class="fa fa-edit" style="color: #2196F3; margin-right: 8px; width: 16px;"></i>
+                    <strong>Update Only</strong> - Only update if record exists (skip insert)
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer; padding: 4px 0;">
+                    <input type="radio" name="node-input-mode" value="insertOnly" style="margin-right: 8px;">
+                    <i class="fa fa-plus" style="color: #FF9800; margin-right: 8px; width: 16px;"></i>
+                    <strong>Insert Only</strong> - Only insert if record doesn't exist (skip update)
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Match Preview -->
+    <div class="form-row" id="match-preview-section" style="display:none;">
+        <label><i class="fa fa-eye"></i> SQL Preview</label>
+        <div style="margin-left: 105px;">
+            <div id="match-preview" style="background: #f5f5f5; padding: 8px; border-radius: 3px; font-family: monospace; font-size: 11px; border: 1px solid #ddd;">
+                <!-- Shows SQL preview based on selections -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Static Data for Testing -->
+    <div class="form-row">
+        <label for="node-input-data"><i class="fa fa-code"></i> Test Data</label>
+        <div style="position: relative;">
+            <textarea id="node-input-data" rows="4" style="width: 100%; font-family: monospace;" 
+                      placeholder='{"email": "user@example.com", "name": "John Doe", "role": "admin"}'></textarea>
+            <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                <i class="fa fa-info-circle"></i> Optional JSON data for testing. msg.payload will override this.
+            </div>
+        </div>
+    </div>
+</script>
+<script type="text/html" data-help-name="panel-upsert">
+    <p>Insert or update records in a Panel collection based on matching field values.</p>
+    
+    <h3>Configuration</h3>
+    <dl class="message-properties">
+        <dt>Collection</dt>
+        <dd>Select the target collection from the dropdown</dd>
+        <dt>Match Fields</dt>
+        <dd>Select one or more fields to use for matching existing records. Records with matching values in ALL selected fields will be updated, otherwise a new record will be inserted.</dd>
+        <dt>Operation Mode</dt>
+        <dd>
+            <ul>
+                <li><strong>Upsert</strong>: Insert new records or update existing ones (default)</li>
+                <li><strong>Update Only</strong>: Only update existing records, skip insertion</li>
+                <li><strong>Insert Only</strong>: Only insert new records, skip updates</li>
+            </ul>
+        </dd>
+    </dl>
+    
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>The data to upsert</dd>
+        <dt class="optional">collection <span class="property-type">string</span></dt>
+        <dd>Override the configured collection (when "Use msg properties" is enabled)</dd>
+        <dt class="optional">matchFields <span class="property-type">array</span></dt>
+        <dd>Override the configured match fields (when "Use msg properties" is enabled)</dd>
+        <dt class="optional">mode <span class="property-type">string</span></dt>
+        <dd>Override the operation mode: "upsert", "updateOnly", or "insertOnly"</dd>
+    </dl>
+    
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>The upserted record (including any auto-generated fields)</dd>
+        <dt>operation <span class="property-type">string</span></dt>
+        <dd>Either "insert" or "update" indicating what operation was performed</dd>
+        <dt>recordId <span class="property-type">number</span></dt>
+        <dd>The ID of the upserted record</dd>
+        <dt>changes <span class="property-type">number</span></dt>
+        <dd>Number of rows affected (typically 1)</dd>
+    </dl>
+    
+    <h3>Details</h3>
+    <p>This node uses SQLite's native <code>ON CONFLICT</code> clause for efficient upsert operations. It automatically creates unique indexes for the match fields if they don't already exist.</p>
+    
+    <p>The match fields determine uniqueness - if a record exists with the same values in ALL match fields, it will be updated. Otherwise, a new record is inserted.</p>
+    
+    <h3>Examples</h3>
+    <p><strong>Simple email-based upsert:</strong></p>
+    <pre>msg.payload = {
+    "email": "user@example.com",
+    "name": "John Doe",
+    "role": "admin"
+};
+// Match on: email</pre>
+    
+    <p><strong>Composite key upsert:</strong></p>
+    <pre>msg.payload = {
+    "sku": "PROD-123",
+    "vendor_id": 5,
+    "name": "Product Name",
+    "price": 29.99
+};
+// Match on: sku, vendor_id</pre>
+</script>
+
 <!-- Panel Event Listener Node -->
 <script type="text/javascript">
     RED.nodes.registerType('panel-event-listener', {
@@ -551,7 +870,12 @@
             
             // Load event-enabled collections for dropdown
             function loadEventCollections() {
-                $.getJSON('/panel/event-collections')
+                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                $.ajax({
+                    url: '/panel/event-collections',
+                    type: 'GET',
+                    headers: headers
+                })
                     .done(function(collections) {
                         const select = $("#node-input-collection");
                         select.empty();

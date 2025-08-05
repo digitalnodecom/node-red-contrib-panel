@@ -25,6 +25,14 @@
         <i class="ph ph-wrench text-lg"></i>
         <span>API Explorer</span>
       </router-link>
+      <router-link 
+        to="/panel/settings" 
+        class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-200 hover:text-gray-900 transition-all mb-1 no-underline rounded"
+        active-class="bg-blue-500 text-white shadow-sm"
+      >
+        <i class="ph ph-gear text-lg"></i>
+        <span>Settings</span>
+      </router-link>
     </nav>
   </div>
 </template>
