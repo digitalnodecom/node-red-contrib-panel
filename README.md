@@ -17,15 +17,24 @@ A Node-RED plugin that provides a PocketBase-like admin panel backed by SQLite f
 
 ## Installation
 
+### From NPM (Recommended)
+
+```bash
+cd ~/.node-red
+npm install @digitalnodecom/node-red-contrib-panel
+```
+
+### From Source
+
 1. Install the plugin in your Node-RED user directory:
 ```bash
 cd ~/.node-red
 npm install /path/to/node-red-panel
 ```
 
-2. Build the admin UI:
+2. Build the admin UI (only needed for source installation):
 ```bash
-cd node_modules/node-red-contrib-panel/lib/admin
+cd node_modules/@digitalnodecom/node-red-contrib-panel/lib/admin
 npm install
 npm run build
 ```
@@ -121,7 +130,7 @@ The SQLite database is created at: `{Node-RED User Directory}/panel.db`
 
 ### Project Structure
 ```
-node-red-contrib-panel/
+@digitalnodecom/node-red-contrib-panel/
 ├── lib/
 │   ├── panel.js          # Main Node-RED integration
 │   ├── panel.html        # Node editor UI

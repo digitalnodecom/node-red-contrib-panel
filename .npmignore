@@ -1,0 +1,48 @@
+# Development files
+test/
+*.md
+!README.md
+diagnose.js
+.git/
+.github/
+.gitignore
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Node modules (except admin build dependencies)
+lib/admin/node_modules/
+lib/admin/src/
+lib/admin/*.config.*
+lib/admin/package-lock.json
+lib/admin/index.html
+
+# Keep only the built admin UI
+!lib/admin/dist/
+
+# Example files are included for documentation
+# examples/
+
+# Logs and temp files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+*.pid
+*.seed
+*.pid.lock
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Coverage and test reports
+coverage/
+.nyc_output/
+*.lcov
