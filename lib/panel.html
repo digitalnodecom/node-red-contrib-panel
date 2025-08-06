@@ -45,11 +45,12 @@
 
 <!-- Panel Query Node -->
 <script type="text/javascript">
-    RED.nodes.registerType('panel-query', {
-        category: 'storage',
-        color: '#a6bbcf',
+    RED.nodes.registerType('query', {
+        category: 'Panel',
+        color: '#ffcccb',
         defaults: {
             name: { value: "" },
+            database: { value: "master", required: false },
             collection: { value: "", required: false },
             operation: { value: "find", required: false },
             query: { value: "{}" },
@@ -57,7 +58,7 @@
         },
         inputs: 1,
         outputs: 1,
-        icon: "db.svg",
+        icon: "node-red-panel.svg",
         label: function() {
             return this.name || `${this.operation || 'query'} ${this.collection || 'collection'}` || "panel query";
         },
@@ -84,11 +85,38 @@
                     });
             }
             
-            // Load collections for dropdown
-            function loadCollections() {
+            // Load databases for dropdown
+            function loadDatabases() {
                 const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
                 $.ajax({
-                    url: '/panel/node-collections',
+                    url: '/panel/node-databases',
+                    type: 'GET',
+                    headers: headers
+                })
+                    .done(function(databases) {
+                        const select = $("#node-input-database");
+                        select.empty();
+                        databases.forEach(function(db) {
+                            const selected = db.id === node.database ? 'selected' : '';
+                            select.append(`<option value="${db.id}" ${selected}>${db.name}</option>`);
+                        });
+                        if (node.database) {
+                            select.val(node.database);
+                        }
+                        // Load collections after database is set
+                        loadCollections();
+                    })
+                    .fail(function() {
+                        console.warn('Could not load databases for dropdown');
+                    });
+            }
+            
+            // Load collections for dropdown based on selected database
+            function loadCollections() {
+                const database = $("#node-input-database").val() || 'master';
+                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                $.ajax({
+                    url: `/panel/node-collections?database=${database}`,
                     type: 'GET',
                     headers: headers
                 })
@@ -108,9 +136,14 @@
                     });
             }
             
-            // Load internal token first, then collections
-            loadInternalToken().always(function() {
+            // Handle database selection change
+            $("#node-input-database").change(function() {
                 loadCollections();
+            });
+            
+            // Load internal token first, then databases and collections
+            loadInternalToken().always(function() {
+                loadDatabases();
             });
             
             // Handle useMsg checkbox changes
@@ -131,7 +164,7 @@
     });
 </script>
 
-<script type="text/html" data-template-name="panel-query">
+<script type="text/html" data-template-name="query">
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
@@ -144,6 +177,12 @@
     </div>
     
     <div id="static-config">
+        <div class="form-row">
+            <label for="node-input-database"><i class="fa fa-server"></i> Database</label>
+            <select id="node-input-database" style="width:70%;">
+                <option value="master">Loading databases...</option>
+            </select>
+        </div>
         <div class="form-row">
             <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
             <select id="node-input-collection" style="width:70%;">
@@ -168,6 +207,7 @@
         <div class="form-row">
             <p style="margin:10px 0; padding:10px; background:#f0f0f0; border-radius:3px;">
                 <i class="fa fa-info-circle"></i> When using msg properties:
+                <br>• <code>msg.database</code> - Database name (optional, defaults to configured)
                 <br>• <code>msg.collection</code> - Collection name
                 <br>• <code>msg.operation</code> - Operation type (find, findOne, count)
                 <br>• <code>msg.query</code> - Query parameters object
@@ -176,7 +216,7 @@
     </div>
 </script>
 
-<script type="text/html" data-help-name="panel-query">
+<script type="text/html" data-help-name="query">
     <p>Query data from a Panel collection.</p>
     <h3>Inputs</h3>
     <dl class="message-properties">
@@ -192,27 +232,74 @@
 
 <!-- Panel Insert Node -->
 <script type="text/javascript">
-    RED.nodes.registerType('panel-insert', {
-        category: 'storage',
-        color: '#a6bbcf',
+    RED.nodes.registerType('insert', {
+        category: 'Panel',
+        color: '#ffcccb',
         defaults: {
             name: { value: "" },
+            database: { value: "master", required: false },
             collection: { value: "", required: false },
             useMsg: { value: false },
             data: { value: "{\"title\": \"Sample Article\", \"content\": \"Lorem ipsum...\", \"published\": true}" }
         },
         inputs: 1,
         outputs: 1,
-        icon: "db.svg",
+        icon: "node-red-panel.svg",
         label: function() {
             return this.name || `insert ${this.collection || 'collection'}` || "panel insert";
         },
         oneditprepare: function() {
             const node = this;
             
-            // Load collections for dropdown
+            // Panel internal token for authentication
+            let panelInternalToken = null;
+            
+            // Load internal token
+            function loadInternalToken() {
+                return $.getJSON('/panel/internal-token')
+                    .done(function(response) {
+                        panelInternalToken = response.token;
+                    })
+                    .fail(function() {
+                        console.warn('Could not load panel internal token');
+                    });
+            }
+            
+            // Load databases for dropdown
+            function loadDatabases() {
+                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                $.ajax({
+                    url: '/panel/node-databases',
+                    type: 'GET',
+                    headers: headers
+                })
+                    .done(function(databases) {
+                        const select = $("#node-input-database");
+                        select.empty();
+                        databases.forEach(function(db) {
+                            const selected = db.id === node.database ? 'selected' : '';
+                            select.append(`<option value="${db.id}" ${selected}>${db.name}</option>`);
+                        });
+                        if (node.database) {
+                            select.val(node.database);
+                        }
+                        // Load collections after database is set
+                        loadCollections();
+                    })
+                    .fail(function() {
+                        console.warn('Could not load databases for dropdown');
+                    });
+            }
+            
+            // Load collections for dropdown based on selected database
             function loadCollections() {
-                $.getJSON('/panel/node-collections')
+                const database = $("#node-input-database").val() || 'master';
+                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                $.ajax({
+                    url: `/panel/node-collections?database=${database}`,
+                    type: 'GET',
+                    headers: headers
+                })
                     .done(function(collections) {
                         const select = $("#node-input-collection");
                         select.empty();
@@ -229,8 +316,15 @@
                     });
             }
             
-            // Load collections on dialog open
-            loadCollections();
+            // Handle database selection change
+            $("#node-input-database").change(function() {
+                loadCollections();
+            });
+            
+            // Load internal token first, then databases and collections
+            loadInternalToken().always(function() {
+                loadDatabases();
+            });
             
             // Initialize typed input for data (insert node)
             if ($("#node-input-data").length) {
@@ -258,7 +352,7 @@
     });
 </script>
 
-<script type="text/html" data-template-name="panel-insert">
+<script type="text/html" data-template-name="insert">
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
@@ -271,6 +365,12 @@
     </div>
     
     <div id="static-config">
+        <div class="form-row">
+            <label for="node-input-database"><i class="fa fa-server"></i> Database</label>
+            <select id="node-input-database" style="width:70%;">
+                <option value="master">Loading databases...</option>
+            </select>
+        </div>
         <div class="form-row">
             <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
             <select id="node-input-collection" style="width:70%;">
@@ -288,6 +388,7 @@
         <div class="form-row">
             <p style="margin:10px 0; padding:10px; background:#f0f0f0; border-radius:3px;">
                 <i class="fa fa-info-circle"></i> When using msg properties:
+                <br>• <code>msg.database</code> - Database name (optional, defaults to configured)
                 <br>• <code>msg.collection</code> - Collection name
                 <br>• <code>msg.payload</code> - Data to insert
                 <br>• If no msg.payload, uses configured static data
@@ -296,7 +397,7 @@
     </div>
 </script>
 
-<script type="text/html" data-help-name="panel-insert">
+<script type="text/html" data-help-name="insert">
     <p>Insert a new record into a Panel collection.</p>
     <h3>Inputs</h3>
     <dl class="message-properties">
@@ -314,27 +415,74 @@
 
 <!-- Panel Update Node -->
 <script type="text/javascript">
-    RED.nodes.registerType('panel-update', {
-        category: 'storage',
-        color: '#a6bbcf',
+    RED.nodes.registerType('update', {
+        category: 'Panel',
+        color: '#ffcccb',
         defaults: {
             name: { value: "" },
+            database: { value: "master", required: false },
             collection: { value: "", required: false },
             useMsg: { value: false },
             data: { value: "{\"id\": 1, \"title\": \"Updated Title\", \"published\": false}" }
         },
         inputs: 1,
         outputs: 1,
-        icon: "db.svg",
+        icon: "node-red-panel.svg",
         label: function() {
             return this.name || `update ${this.collection || 'collection'}` || "panel update";
         },
         oneditprepare: function() {
             const node = this;
             
-            // Load collections for dropdown
+            // Panel internal token for authentication
+            let panelInternalToken = null;
+            
+            // Load internal token
+            function loadInternalToken() {
+                return $.getJSON('/panel/internal-token')
+                    .done(function(response) {
+                        panelInternalToken = response.token;
+                    })
+                    .fail(function() {
+                        console.warn('Could not load panel internal token');
+                    });
+            }
+            
+            // Load databases for dropdown
+            function loadDatabases() {
+                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                $.ajax({
+                    url: '/panel/node-databases',
+                    type: 'GET',
+                    headers: headers
+                })
+                    .done(function(databases) {
+                        const select = $("#node-input-database");
+                        select.empty();
+                        databases.forEach(function(db) {
+                            const selected = db.id === node.database ? 'selected' : '';
+                            select.append(`<option value="${db.id}" ${selected}>${db.name}</option>`);
+                        });
+                        if (node.database) {
+                            select.val(node.database);
+                        }
+                        // Load collections after database is set
+                        loadCollections();
+                    })
+                    .fail(function() {
+                        console.warn('Could not load databases for dropdown');
+                    });
+            }
+            
+            // Load collections for dropdown based on selected database
             function loadCollections() {
-                $.getJSON('/panel/node-collections')
+                const database = $("#node-input-database").val() || 'master';
+                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                $.ajax({
+                    url: `/panel/node-collections?database=${database}`,
+                    type: 'GET',
+                    headers: headers
+                })
                     .done(function(collections) {
                         const select = $("#node-input-collection");
                         select.empty();
@@ -351,8 +499,15 @@
                     });
             }
             
-            // Load collections on dialog open
-            loadCollections();
+            // Handle database selection change
+            $("#node-input-database").change(function() {
+                loadCollections();
+            });
+            
+            // Load internal token first, then databases and collections
+            loadInternalToken().always(function() {
+                loadDatabases();
+            });
             
             // Initialize typed input for data (update node)
             if ($("#node-input-data").length) {
@@ -380,7 +535,7 @@
     });
 </script>
 
-<script type="text/html" data-template-name="panel-update">
+<script type="text/html" data-template-name="update">
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
@@ -393,6 +548,12 @@
     </div>
     
     <div id="static-config">
+        <div class="form-row">
+            <label for="node-input-database"><i class="fa fa-server"></i> Database</label>
+            <select id="node-input-database" style="width:70%;">
+                <option value="master">Loading databases...</option>
+            </select>
+        </div>
         <div class="form-row">
             <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
             <select id="node-input-collection" style="width:70%;">
@@ -410,6 +571,7 @@
         <div class="form-row">
             <p style="margin:10px 0; padding:10px; background:#f0f0f0; border-radius:3px;">
                 <i class="fa fa-info-circle"></i> When using msg properties:
+                <br>• <code>msg.database</code> - Database name (optional, defaults to configured)
                 <br>• <code>msg.collection</code> - Collection name
                 <br>• <code>msg.payload</code> - Object with id and fields to update
                 <br>• If no msg.payload, uses configured static data
@@ -418,7 +580,7 @@
     </div>
 </script>
 
-<script type="text/html" data-help-name="panel-update">
+<script type="text/html" data-help-name="update">
     <p>Update a record in a Panel collection.</p>
     <h3>Inputs</h3>
     <dl class="message-properties">
@@ -436,27 +598,74 @@
 
 <!-- Panel Delete Node -->
 <script type="text/javascript">
-    RED.nodes.registerType('panel-delete', {
-        category: 'storage',
-        color: '#a6bbcf',
+    RED.nodes.registerType('delete', {
+        category: 'Panel',
+        color: '#ffcccb',
         defaults: {
             name: { value: "" },
+            database: { value: "master", required: false },
             collection: { value: "", required: false },
             useMsg: { value: false },
             data: { value: "5" }
         },
         inputs: 1,
         outputs: 1,
-        icon: "db.svg",
+        icon: "node-red-panel.svg",
         label: function() {
             return this.name || `delete ${this.collection || 'collection'}` || "panel delete";
         },
         oneditprepare: function() {
             const node = this;
             
-            // Load collections for dropdown
+            // Panel internal token for authentication
+            let panelInternalToken = null;
+            
+            // Load internal token
+            function loadInternalToken() {
+                return $.getJSON('/panel/internal-token')
+                    .done(function(response) {
+                        panelInternalToken = response.token;
+                    })
+                    .fail(function() {
+                        console.warn('Could not load panel internal token');
+                    });
+            }
+            
+            // Load databases for dropdown
+            function loadDatabases() {
+                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                $.ajax({
+                    url: '/panel/node-databases',
+                    type: 'GET',
+                    headers: headers
+                })
+                    .done(function(databases) {
+                        const select = $("#node-input-database");
+                        select.empty();
+                        databases.forEach(function(db) {
+                            const selected = db.id === node.database ? 'selected' : '';
+                            select.append(`<option value="${db.id}" ${selected}>${db.name}</option>`);
+                        });
+                        if (node.database) {
+                            select.val(node.database);
+                        }
+                        // Load collections after database is set
+                        loadCollections();
+                    })
+                    .fail(function() {
+                        console.warn('Could not load databases for dropdown');
+                    });
+            }
+            
+            // Load collections for dropdown based on selected database
             function loadCollections() {
-                $.getJSON('/panel/node-collections')
+                const database = $("#node-input-database").val() || 'master';
+                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                $.ajax({
+                    url: `/panel/node-collections?database=${database}`,
+                    type: 'GET',
+                    headers: headers
+                })
                     .done(function(collections) {
                         const select = $("#node-input-collection");
                         select.empty();
@@ -473,8 +682,15 @@
                     });
             }
             
-            // Load collections on dialog open
-            loadCollections();
+            // Handle database selection change
+            $("#node-input-database").change(function() {
+                loadCollections();
+            });
+            
+            // Load internal token first, then databases and collections
+            loadInternalToken().always(function() {
+                loadDatabases();
+            });
             
             // Handle useMsg checkbox changes
             function toggleMsgOptions() {
@@ -494,7 +710,7 @@
     });
 </script>
 
-<script type="text/html" data-template-name="panel-delete">
+<script type="text/html" data-template-name="delete">
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
@@ -507,6 +723,12 @@
     </div>
     
     <div id="static-config">
+        <div class="form-row">
+            <label for="node-input-database"><i class="fa fa-server"></i> Database</label>
+            <select id="node-input-database" style="width:70%;">
+                <option value="master">Loading databases...</option>
+            </select>
+        </div>
         <div class="form-row">
             <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
             <select id="node-input-collection" style="width:70%;">
@@ -524,6 +746,7 @@
         <div class="form-row">
             <p style="margin:10px 0; padding:10px; background:#f0f0f0; border-radius:3px;">
                 <i class="fa fa-info-circle"></i> When using msg properties:
+                <br>• <code>msg.database</code> - Database name (optional, defaults to configured)
                 <br>• <code>msg.collection</code> - Collection name
                 <br>• <code>msg.payload</code> - Record ID or object with id property
                 <br>• If no msg.payload, uses configured static record ID
@@ -532,7 +755,7 @@
     </div>
 </script>
 
-<script type="text/html" data-help-name="panel-delete">
+<script type="text/html" data-help-name="delete">
     <p>Delete a record from a Panel collection.</p>
     <h3>Inputs</h3>
     <dl class="message-properties">
@@ -550,11 +773,12 @@
 
 <!-- Panel Upsert Node -->
 <script type="text/javascript">
-    RED.nodes.registerType('panel-upsert', {
-        category: 'storage',
-        color: '#a6bbcf',
+    RED.nodes.registerType('upsert', {
+        category: 'Panel',
+        color: '#ffcccb',
         defaults: {
             name: { value: "" },
+            database: { value: "master", required: false },
             collection: { value: "", required: false },
             matchFields: { value: [] },
             mode: { value: "upsert" },
@@ -563,7 +787,7 @@
         },
         inputs: 1,
         outputs: 1,
-        icon: "arrow-in.png",
+        icon: "node-red-panel.svg",
         label: function() {
             if (this.name) {
                 return this.name;
@@ -580,8 +804,15 @@
         oneditprepare: function() {
             const node = this;
             
-            // Load collections
-            loadCollections();
+            // Handle database selection change
+            $("#node-input-database").change(function() {
+                loadCollections();
+            });
+            
+            // Load internal token first, then databases and collections
+            loadInternalToken().always(function() {
+                loadDatabases();
+            });
             
             // Collection change handler
             $('#node-input-collection').on('change', function() {
@@ -605,8 +836,54 @@
                 updateMatchPreview();
             });
             
+            // Panel internal token for authentication
+            let panelInternalToken = null;
+            
+            // Load internal token
+            function loadInternalToken() {
+                return $.getJSON('/panel/internal-token')
+                    .done(function(response) {
+                        panelInternalToken = response.token;
+                    })
+                    .fail(function() {
+                        console.warn('Could not load panel internal token');
+                    });
+            }
+            
+            // Load databases for dropdown
+            function loadDatabases() {
+                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                $.ajax({
+                    url: '/panel/node-databases',
+                    type: 'GET',
+                    headers: headers
+                })
+                    .done(function(databases) {
+                        const select = $("#node-input-database");
+                        select.empty();
+                        databases.forEach(function(db) {
+                            const selected = db.id === node.database ? 'selected' : '';
+                            select.append(`<option value="${db.id}" ${selected}>${db.name}</option>`);
+                        });
+                        if (node.database) {
+                            select.val(node.database);
+                        }
+                        // Load collections after database is set
+                        loadCollections();
+                    })
+                    .fail(function() {
+                        console.warn('Could not load databases for dropdown');
+                    });
+            }
+            
             function loadCollections() {
-                $.getJSON('/panel/node-collections')
+                const database = $("#node-input-database").val() || 'master';
+                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                $.ajax({
+                    url: `/panel/node-collections?database=${database}`,
+                    type: 'GET',
+                    headers: headers
+                })
                     .done(function(collections) {
                         const select = $('#node-input-collection');
                         select.empty().append('<option value="">Select collection...</option>');
@@ -701,7 +978,7 @@
         }
     });
 </script>
-<script type="text/html" data-template-name="panel-upsert">
+<script type="text/html" data-template-name="upsert">
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
@@ -710,7 +987,14 @@
     <div class="form-row">
         <label for="node-input-useMsg"><i class="fa fa-exchange"></i> Use msg properties</label>
         <input type="checkbox" id="node-input-useMsg" style="display:inline-block; width:20px; vertical-align:baseline;">
-        <span style="margin-left:10px;">Override configuration with msg.collection, msg.matchFields, msg.mode</span>
+        <span style="margin-left:10px;">Override configuration with msg.database, msg.collection, msg.matchFields, msg.mode</span>
+    </div>
+    
+    <div class="form-row">
+        <label for="node-input-database"><i class="fa fa-server"></i> Database</label>
+        <select id="node-input-database" style="width: 70%;">
+            <option value="master">Loading databases...</option>
+        </select>
     </div>
     
     <div class="form-row">
@@ -779,7 +1063,7 @@
         </div>
     </div>
 </script>
-<script type="text/html" data-help-name="panel-upsert">
+<script type="text/html" data-help-name="upsert">
     <p>Insert or update records in a Panel collection based on matching field values.</p>
     
     <h3>Configuration</h3>
@@ -802,6 +1086,8 @@
     <dl class="message-properties">
         <dt>payload <span class="property-type">object</span></dt>
         <dd>The data to upsert</dd>
+        <dt class="optional">database <span class="property-type">string</span></dt>
+        <dd>Override the configured database (when "Use msg properties" is enabled)</dd>
         <dt class="optional">collection <span class="property-type">string</span></dt>
         <dd>Override the configured collection (when "Use msg properties" is enabled)</dd>
         <dt class="optional">matchFields <span class="property-type">array</span></dt>
@@ -848,11 +1134,12 @@
 
 <!-- Panel Event Listener Node -->
 <script type="text/javascript">
-    RED.nodes.registerType('panel-event-listener', {
-        category: 'storage',
-        color: '#a6bbcf',
+    RED.nodes.registerType('listener', {
+        category: 'Panel',
+        color: '#ffcccb',
         defaults: {
             name: { value: "" },
+            database: { value: "master", required: false },
             collection: { value: "", required: false },
             eventTypes: { value: ["INSERT", "UPDATE", "DELETE"] },
             pollingInterval: { value: 10 },
@@ -861,18 +1148,59 @@
         },
         inputs: 0,
         outputs: 1,
-        icon: "db.svg",
+        icon: "node-red-panel.svg",
         label: function() {
-            return this.name || `listen ${this.collection || 'events'}` || "event listener";
+            return this.name || `listen ${this.collection || 'events'}` || "listener";
         },
         oneditprepare: function() {
             const node = this;
             
-            // Load event-enabled collections for dropdown
-            function loadEventCollections() {
+            // Panel internal token for authentication
+            let panelInternalToken = null;
+            
+            // Load internal token
+            function loadInternalToken() {
+                return $.getJSON('/panel/internal-token')
+                    .done(function(response) {
+                        panelInternalToken = response.token;
+                    })
+                    .fail(function() {
+                        console.warn('Could not load panel internal token');
+                    });
+            }
+            
+            // Load databases for dropdown
+            function loadDatabases() {
                 const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
                 $.ajax({
-                    url: '/panel/event-collections',
+                    url: '/panel/node-databases',
+                    type: 'GET',
+                    headers: headers
+                })
+                    .done(function(databases) {
+                        const select = $("#node-input-database");
+                        select.empty();
+                        databases.forEach(function(db) {
+                            const selected = db.id === node.database ? 'selected' : '';
+                            select.append(`<option value="${db.id}" ${selected}>${db.name}</option>`);
+                        });
+                        if (node.database) {
+                            select.val(node.database);
+                        }
+                        // Load collections after database is set
+                        loadEventCollections();
+                    })
+                    .fail(function() {
+                        console.warn('Could not load databases for dropdown');
+                    });
+            }
+            
+            // Load event-enabled collections for dropdown
+            function loadEventCollections() {
+                const database = $("#node-input-database").val() || 'master';
+                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                $.ajax({
+                    url: `/panel/event-collections?database=${database}`,
                     type: 'GET',
                     headers: headers
                 })
@@ -893,8 +1221,15 @@
                     });
             }
             
-            // Load collections on dialog open
-            loadEventCollections();
+            // Handle database selection change
+            $("#node-input-database").change(function() {
+                loadEventCollections();
+            });
+            
+            // Load internal token first, then databases and collections
+            loadInternalToken().always(function() {
+                loadDatabases();
+            });
             
             // Initialize event type checkboxes
             const eventTypes = node.eventTypes || ["INSERT", "UPDATE", "DELETE"];
@@ -943,10 +1278,17 @@
     });
 </script>
 
-<script type="text/html" data-template-name="panel-event-listener">
+<script type="text/html" data-template-name="listener">
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    
+    <div class="form-row">
+        <label for="node-input-database"><i class="fa fa-server"></i> Database</label>
+        <select id="node-input-database" style="width:70%;">
+            <option value="master">Loading databases...</option>
+        </select>
     </div>
     
     <div class="form-row">
@@ -997,7 +1339,7 @@
     </div>
 </script>
 
-<script type="text/html" data-help-name="panel-event-listener">
+<script type="text/html" data-help-name="listener">
     <p>Listen for database events from Panel collections with events enabled.</p>
     <h3>Configuration</h3>
     <ul>

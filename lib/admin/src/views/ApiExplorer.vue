@@ -2,7 +2,12 @@
   <div class="max-w-4xl mx-auto p-6">
     <div class="mb-8">
       <h2 class="text-2xl font-bold text-gray-900 mb-2">API Explorer</h2>
-      <p class="text-gray-600">Test your Panel API endpoints</p>
+      <p class="text-gray-600">
+        Test your Panel API endpoints
+        <span v-if="databasesStore.currentDatabase !== 'master'" class="ml-2 text-sm font-medium text-blue-600">
+          (Database: {{ databasesStore.currentDatabase }})
+        </span>
+      </p>
     </div>
 
     <div class="bg-white shadow p-6">
@@ -85,6 +90,7 @@ import { ref, computed, watch } from 'vue'
 import api from '@/api'
 import Select from '@/components/ui/Select.vue'
 import Input from '@/components/ui/Input.vue'
+import { useDatabasesStore } from '@/store/databases'
 
 const endpoints = [
   {
@@ -207,6 +213,8 @@ const endpoints = [
   }
 ]
 
+const databasesStore = useDatabasesStore()
+
 const selectedEndpointValue = ref('')
 const selectedEndpoint = ref(null)
 const params = ref({})
@@ -306,10 +314,20 @@ const sendRequest = async () => {
       })
     }
 
-    // Prepare request config
+    // Prepare request config - handle database-scoped endpoints
+    let finalUrl = url.replace('/panel/api', '') || '/'
+    
+    // If not master database, prepend database context to URL
+    if (databasesStore.currentDatabase !== 'master') {
+      // Only add database context for non-system endpoints
+      if (!finalUrl.startsWith('/system') && !finalUrl.startsWith('/databases') && !finalUrl.startsWith('/events')) {
+        finalUrl = `/databases/${databasesStore.currentDatabase}${finalUrl}`
+      }
+    }
+    
     const config = {
       method: selectedEndpoint.value.method.toLowerCase(),
-      url: url.replace('/panel/api', '') || '/' // Remove base path as it's in axios config
+      url: finalUrl
     }
     
     // Add query parameters if any

@@ -49,13 +49,30 @@
               
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
                 <div>
-                  <span class="font-medium">Permissions:</span>
+                  <span class="font-medium">Global Permissions:</span>
                   <div class="mt-1">
                     <span v-if="key.permissions.read" class="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs mr-1">Read</span>
                     <span v-if="key.permissions.write" class="inline-block bg-green-100 text-green-800 px-2 py-1 rounded text-xs mr-1">Write</span>
                   </div>
                   <div class="mt-1 text-xs">
                     Collections: {{ key.permissions.collections.includes('*') ? 'All' : key.permissions.collections.join(', ') }}
+                  </div>
+                  
+                  <!-- Database-specific permissions -->
+                  <div v-if="key.database_permissions && Object.keys(key.database_permissions).length > 0" class="mt-2">
+                    <span class="font-medium text-xs">Database Access:</span>
+                    <div class="mt-1 space-y-1">
+                      <div v-for="(perms, dbName) in key.database_permissions" :key="dbName" class="text-xs">
+                        <div class="font-medium text-gray-700">{{ dbName }}:</div>
+                        <div class="ml-2 flex flex-wrap gap-1">
+                          <span v-if="perms.read" class="inline-block bg-blue-100 text-blue-800 px-1 py-0.5 rounded text-xs">Read</span>
+                          <span v-if="perms.write" class="inline-block bg-green-100 text-green-800 px-1 py-0.5 rounded text-xs">Write</span>
+                        </div>
+                        <div class="ml-2 text-xs text-gray-500">
+                          Collections: {{ perms.collections.includes('*') ? 'All' : perms.collections.join(', ') }}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 
@@ -122,8 +139,36 @@
           />
         </div>
 
+        <!-- Permission Type Selection -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Permissions</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Permission Type</label>
+          <div class="space-y-2">
+            <label class="flex items-center">
+              <input 
+                type="radio" 
+                :value="'global'" 
+                v-model="permissionType" 
+                class="border-gray-300 text-blue-600 focus:ring-blue-500"
+                :disabled="submitting"
+              >
+              <span class="ml-2 text-sm">Global permissions (applies to master database)</span>
+            </label>
+            <label class="flex items-center">
+              <input 
+                type="radio" 
+                :value="'database'" 
+                v-model="permissionType" 
+                class="border-gray-300 text-blue-600 focus:ring-blue-500"  
+                :disabled="submitting"
+              >
+              <span class="ml-2 text-sm">Database-specific permissions</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Global Permissions -->
+        <div v-if="permissionType === 'global'">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Global Permissions</label>
           <div class="space-y-2">
             <label class="flex items-center">
               <input 
@@ -144,40 +189,144 @@
               <span class="ml-2 text-sm">Write access (create, update, delete)</span>
             </label>
           </div>
+          
+          <div class="mt-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Collections Access</label>
+            <div class="space-y-2">
+              <label class="flex items-center">
+                <input 
+                  type="radio" 
+                  :value="'all'" 
+                  v-model="collectionAccess" 
+                  class="border-gray-300 text-blue-600 focus:ring-blue-500"
+                  :disabled="submitting"
+                >
+                <span class="ml-2 text-sm">All collections</span>
+              </label>
+              <label class="flex items-center">
+                <input 
+                  type="radio" 
+                  :value="'specific'" 
+                  v-model="collectionAccess" 
+                  class="border-gray-300 text-blue-600 focus:ring-blue-500"  
+                  :disabled="submitting"
+                >
+                <span class="ml-2 text-sm">Specific collections</span>
+              </label>
+            </div>
+            
+            <div v-if="collectionAccess === 'specific'" class="mt-3">
+              <Input 
+                v-model="specificCollections" 
+                placeholder="Enter collection names separated by commas..."
+                :disabled="submitting"
+              />
+              <p class="text-xs text-gray-500 mt-1">Example: users,products,orders</p>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Collections Access</label>
-          <div class="space-y-2">
-            <label class="flex items-center">
-              <input 
-                type="radio" 
-                :value="'all'" 
-                v-model="collectionAccess" 
-                class="border-gray-300 text-blue-600 focus:ring-blue-500"
-                :disabled="submitting"
-              >
-              <span class="ml-2 text-sm">All collections</span>
-            </label>
-            <label class="flex items-center">
-              <input 
-                type="radio" 
-                :value="'specific'" 
-                v-model="collectionAccess" 
-                class="border-gray-300 text-blue-600 focus:ring-blue-500"  
-                :disabled="submitting"
-              >
-              <span class="ml-2 text-sm">Specific collections</span>
-            </label>
+        <!-- Database-specific Permissions -->
+        <div v-if="permissionType === 'database'">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Database Permissions</label>
+          
+          <div v-if="databases.length === 0" class="text-sm text-gray-500 py-4">
+            <i class="ph ph-database mr-2"></i>
+            No additional databases available. Create databases in the Databases section.
           </div>
           
-          <div v-if="collectionAccess === 'specific'" class="mt-3">
-            <Input 
-              v-model="specificCollections" 
-              placeholder="Enter collection names separated by commas..."
-              :disabled="submitting"
-            />
-            <p class="text-xs text-gray-500 mt-1">Example: users,products,orders</p>
+          <div v-else class="space-y-4 max-h-96 overflow-y-auto">
+            <div 
+              v-for="database in databases" 
+              :key="database.name"
+              class="border rounded-lg p-4"
+            >
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center">
+                  <label class="flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      :checked="isDatabaseEnabled(database.name)"
+                      @change="toggleDatabaseAccess(database.name)"
+                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      :disabled="submitting"
+                    >
+                    <span class="ml-2 font-medium">{{ database.name }}</span>
+                  </label>
+                  <span v-if="database.is_master" class="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">Master</span>
+                  <span v-if="database.is_default" class="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Default</span>
+                </div>
+              </div>
+              
+              <div v-if="isDatabaseEnabled(database.name)" class="ml-6 space-y-3">
+                <!-- Permissions -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-600 mb-1">Permissions</label>
+                  <div class="flex gap-4">
+                    <label class="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        :checked="getDatabasePermission(database.name, 'read')"
+                        @change="setDatabasePermission(database.name, 'read', $event.target.checked)"
+                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        :disabled="submitting"
+                      >
+                      <span class="ml-1 text-sm">Read</span>
+                    </label>
+                    <label class="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        :checked="getDatabasePermission(database.name, 'write')"
+                        @change="setDatabasePermission(database.name, 'write', $event.target.checked)"
+                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        :disabled="submitting"
+                      >
+                      <span class="ml-1 text-sm">Write</span>
+                    </label>
+                  </div>
+                </div>
+                
+                <!-- Collections -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-600 mb-1">Collections</label>
+                  <div class="space-y-2">
+                    <label class="flex items-center">
+                      <input 
+                        type="radio" 
+                        :value="'all'" 
+                        :checked="getDatabaseCollectionAccess(database.name) === 'all'"
+                        @change="setDatabaseCollectionAccess(database.name, 'all')"
+                        class="border-gray-300 text-blue-600 focus:ring-blue-500"
+                        :disabled="submitting"
+                      >
+                      <span class="ml-2 text-sm">All collections</span>
+                    </label>
+                    <label class="flex items-center">
+                      <input 
+                        type="radio" 
+                        :value="'specific'" 
+                        :checked="getDatabaseCollectionAccess(database.name) === 'specific'"
+                        @change="setDatabaseCollectionAccess(database.name, 'specific')"
+                        class="border-gray-300 text-blue-600 focus:ring-blue-500"  
+                        :disabled="submitting"
+                      >
+                      <span class="ml-2 text-sm">Specific collections</span>
+                    </label>
+                  </div>
+                  
+                  <div v-if="getDatabaseCollectionAccess(database.name) === 'specific'" class="mt-2">
+                    <Input 
+                      :modelValue="getDatabaseSpecificCollections(database.name)"
+                      @update:modelValue="setDatabaseSpecificCollections(database.name, $event)"
+                      placeholder="Enter collection names separated by commas..."
+                      :disabled="submitting"
+                      class="text-sm"
+                    />
+                    <p class="text-xs text-gray-500 mt-1">Example: users,products,orders</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -265,8 +414,9 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import api from '@/api'
+import { useDatabasesStore } from '@/store/databases'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
@@ -281,6 +431,8 @@ export default {
     Modal
   },
   setup() {
+    const databasesStore = useDatabasesStore()
+    
     const loading = ref(true)
     const submitting = ref(false)
     const apiKeys = ref([])
@@ -291,6 +443,8 @@ export default {
     const editingKey = ref(null)
     const collectionAccess = ref('all')
     const specificCollections = ref('')
+    const permissionType = ref('global')
+    const databasePermissions = ref({})
 
     const formData = reactive({
       name: '',
@@ -299,11 +453,93 @@ export default {
         write: false,
         collections: ['*']
       },
+      database_permissions: {},
       rate_limit: 1000,
       expires_at: ''
     })
 
     const isEditing = computed(() => !!editingKey.value)
+    
+    // Filter out master database for database-specific permissions
+    const databases = computed(() => {
+      return databasesStore.databases.filter(db => !db.is_master)
+    })
+
+    // Database permission helper methods
+    const isDatabaseEnabled = (dbName) => {
+      return !!databasePermissions.value[dbName]
+    }
+
+    const toggleDatabaseAccess = (dbName) => {
+      if (isDatabaseEnabled(dbName)) {
+        delete databasePermissions.value[dbName]
+      } else {
+        databasePermissions.value[dbName] = {
+          read: false,
+          write: false,
+          collections: ['*']
+        }
+      }
+    }
+
+    const getDatabasePermission = (dbName, permission) => {
+      return databasePermissions.value[dbName]?.[permission] || false
+    }
+
+    const setDatabasePermission = (dbName, permission, value) => {
+      if (!databasePermissions.value[dbName]) {
+        databasePermissions.value[dbName] = {
+          read: false,
+          write: false,
+          collections: ['*']
+        }
+      }
+      databasePermissions.value[dbName][permission] = value
+    }
+
+    const getDatabaseCollectionAccess = (dbName) => {
+      const perms = databasePermissions.value[dbName]
+      if (!perms || !perms.collections) return 'all'
+      return perms.collections.includes('*') ? 'all' : 'specific'
+    }
+
+    const setDatabaseCollectionAccess = (dbName, type) => {
+      if (!databasePermissions.value[dbName]) {
+        databasePermissions.value[dbName] = {
+          read: false,
+          write: false,
+          collections: ['*']
+        }
+      }
+      if (type === 'all') {
+        databasePermissions.value[dbName].collections = ['*']
+      } else {
+        databasePermissions.value[dbName].collections = []
+      }
+    }
+
+    const getDatabaseSpecificCollections = (dbName) => {
+      const perms = databasePermissions.value[dbName]
+      if (!perms || !perms.collections || perms.collections.includes('*')) {
+        return ''
+      }
+      return perms.collections.join(', ')
+    }
+
+    const setDatabaseSpecificCollections = (dbName, value) => {
+      if (!databasePermissions.value[dbName]) {
+        databasePermissions.value[dbName] = {
+          read: false,
+          write: false,
+          collections: []
+        }
+      }
+      const collections = value
+        .split(',')
+        .map(c => c.trim())
+        .filter(c => c.length > 0)
+      databasePermissions.value[dbName].collections = collections.length > 0 ? collections : ['*']
+    }
 
     const loadApiKeys = async () => {
       try {
@@ -325,10 +561,13 @@ export default {
         write: false,
         collections: ['*']
       }
+      formData.database_permissions = {}
       formData.rate_limit = 1000
       formData.expires_at = ''
       collectionAccess.value = 'all'
       specificCollections.value = ''
+      permissionType.value = 'global'
+      databasePermissions.value = {}
       editingKey.value = null
     }
 
@@ -342,8 +581,18 @@ export default {
       editingKey.value = key
       formData.name = key.name
       formData.permissions = { ...key.permissions }
+      formData.database_permissions = key.database_permissions || {}
       formData.rate_limit = key.rate_limit
       formData.expires_at = key.expires_at || ''
+      
+      // Determine permission type
+      if (key.database_permissions && Object.keys(key.database_permissions).length > 0) {
+        permissionType.value = 'database'
+        databasePermissions.value = { ...key.database_permissions }
+      } else {
+        permissionType.value = 'global'
+        databasePermissions.value = {}
+      }
       
       if (key.permissions.collections.includes('*')) {
         collectionAccess.value = 'all'
@@ -359,20 +608,35 @@ export default {
       try {
         submitting.value = true
         
-        // Prepare permissions based on collection access
-        const permissions = { ...formData.permissions }
-        if (collectionAccess.value === 'all') {
-          permissions.collections = ['*']
+        let permissions = { ...formData.permissions }
+        let database_permissions = {}
+        
+        if (permissionType.value === 'global') {
+          // Prepare global permissions based on collection access
+          if (collectionAccess.value === 'all') {
+            permissions.collections = ['*']
+          } else {
+            permissions.collections = specificCollections.value
+              .split(',')
+              .map(c => c.trim())
+              .filter(c => c.length > 0)
+          }
         } else {
-          permissions.collections = specificCollections.value
-            .split(',')
-            .map(c => c.trim())
-            .filter(c => c.length > 0)
+          // Use database-specific permissions
+          database_permissions = { ...databasePermissions.value }
+          
+          // Set global permissions to minimal for database-specific mode
+          permissions = {
+            read: false,
+            write: false,
+            collections: []
+          }
         }
 
         const payload = {
           name: formData.name,
           permissions,
+          database_permissions,
           rate_limit: formData.rate_limit,
           expires_at: formData.expires_at || null
         }
@@ -442,7 +706,8 @@ export default {
       return new Date(dateString).toLocaleString()
     }
 
-    onMounted(() => {
+    onMounted(async () => {
+      await databasesStore.fetchDatabases()
       loadApiKeys()
     })
 
@@ -458,13 +723,25 @@ export default {
       isEditing,
       collectionAccess,
       specificCollections,
+      permissionType,
+      databases,
+      databasePermissions,
       editApiKey,
       saveApiKey,
       regenerateApiKey,
       deleteApiKey,
       copyApiKey,
       closeModal,
-      formatDate
+      formatDate,
+      // Database permission methods
+      isDatabaseEnabled,
+      toggleDatabaseAccess,
+      getDatabasePermission,
+      setDatabasePermission,
+      getDatabaseCollectionAccess,
+      setDatabaseCollectionAccess,
+      getDatabaseSpecificCollections,
+      setDatabaseSpecificCollections
     }
   }
 }

@@ -2,7 +2,12 @@
   <div class="max-w-7xl mx-auto p-6">
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center gap-4">
-        <h2 class="text-2xl font-bold text-gray-900">Manage Collections</h2>
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Manage Collections</h2>
+          <p v-if="databasesStore.currentDatabase !== 'master'" class="text-sm text-gray-600">
+            Database: {{ databasesStore.currentDatabase }}
+          </p>
+        </div>
         <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
           <input
             type="checkbox"
@@ -204,9 +209,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCollectionsStore } from '@/store/collections'
+import { useDatabasesStore } from '@/store/databases'
 import api from '@/api'
 import DataTable from '@/components/ui/DataTable.vue'
 import Button from '@/components/ui/Button.vue'
@@ -215,6 +221,7 @@ import CollectionEditor from '@/components/CollectionEditor.vue'
 
 const router = useRouter()
 const collectionsStore = useCollectionsStore()
+const databasesStore = useDatabasesStore()
 
 const showCreateDialog = ref(false)
 const showDeleteDialog = ref(false)
@@ -275,7 +282,9 @@ const toggleSystemTables = async () => {
   if (showSystemTables.value) {
     // Load all tables including system tables
     try {
-      const response = await api.get('/collections?system=true')
+      const currentDb = databasesStore.currentDatabase
+      const endpoint = `/databases/${currentDb}/collections?system=true`
+      const response = await api.get(endpoint)
       allCollections.value = response.data
     } catch (error) {
       console.error('Failed to fetch system tables:', error)
@@ -291,7 +300,8 @@ const viewData = (name) => {
 const editCollection = async (collection) => {
   try {
     // Fetch complete collection details including field definitions
-    const fullCollection = await collectionsStore.fetchCollection(collection.name)
+    const currentDb = databasesStore.currentDatabase
+    const fullCollection = await collectionsStore.fetchCollection(collection.name, currentDb)
     editingCollection.value = { ...fullCollection }
     showCreateDialog.value = true
   } catch (error) {
@@ -308,7 +318,8 @@ const deleteCollection = async () => {
   if (!collectionToDelete.value) return
   
   try {
-    await collectionsStore.deleteCollection(collectionToDelete.value.name)
+    const currentDb = databasesStore.currentDatabase
+    await collectionsStore.deleteCollection(collectionToDelete.value.name, currentDb)
     showDeleteDialog.value = false
     collectionToDelete.value = null
   } catch (error) {
@@ -325,11 +336,12 @@ const truncateCollection = async () => {
   if (!collectionToTruncate.value) return
   
   try {
-    await collectionsStore.truncateCollection(collectionToTruncate.value.name)
+    const currentDb = databasesStore.currentDatabase
+    await collectionsStore.truncateCollection(collectionToTruncate.value.name, currentDb)
     showTruncateDialog.value = false
     collectionToTruncate.value = null
     // Refresh collections to update record counts
-    await collectionsStore.fetchCollections()
+    await collectionsStore.fetchCollections(currentDb)
   } catch (error) {
     console.error('Failed to truncate collection:', error)
   }
@@ -338,10 +350,11 @@ const truncateCollection = async () => {
 const handleSave = async (collectionData) => {
   error.value = null // Clear any previous errors
   try {
+    const currentDb = databasesStore.currentDatabase
     if (editingCollection.value) {
-      await collectionsStore.updateCollection(editingCollection.value.id, collectionData)
+      await collectionsStore.updateCollection(editingCollection.value.id, collectionData, currentDb)
     } else {
-      await collectionsStore.createCollection(collectionData)
+      await collectionsStore.createCollection(collectionData, currentDb)
     }
     closeDialog()
   } catch (err) {
@@ -356,8 +369,28 @@ const closeDialog = () => {
   error.value = null
 }
 
+// Watch for database changes and refresh collections
+watch(() => databasesStore.currentDatabase, async (newDb, oldDb) => {
+  if (newDb !== oldDb) {
+    try {
+      // Clear current collections immediately to show loading state
+      collectionsStore.collections = []
+      
+      // Reset system tables when database changes
+      showSystemTables.value = false
+      allCollections.value = []
+      
+      // Fetch collections for the new database
+      await collectionsStore.fetchCollections(newDb)
+    } catch (error) {
+      console.error('Error fetching collections for database:', newDb, error)
+    }
+  }
+}, { immediate: false })
+
 onMounted(async () => {
-  await collectionsStore.fetchCollections()
+  const currentDb = databasesStore.currentDatabase
+  await collectionsStore.fetchCollections(currentDb)
 })
 </script>
 

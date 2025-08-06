@@ -1,5 +1,15 @@
 <template>
   <div class="max-w-7xl mx-auto p-6">
+    <!-- Database Context Header -->
+    <div v-if="databasesStore.currentDatabase !== 'master'" class="mb-6">
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex items-center gap-2">
+          <i class="ph ph-database text-blue-600"></i>
+          <span class="font-medium text-blue-800">Current Database: {{ databasesStore.currentDatabase }}</span>
+        </div>
+      </div>
+    </div>
+    
     <!-- Stats Grid -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
       <Card>
@@ -33,78 +43,58 @@
       </Card>
     </div>
 
-    <!-- Database Info -->
-    <Card v-if="systemInfo?.database" class="mb-8">
+    <!-- Latest Activity (Audit Log) -->
+    <Card class="mb-8">
       <template #header>
-        <h2 class="text-xl font-semibold">Database Information</h2>
+        <h2 class="text-xl font-semibold">Latest Activity</h2>
       </template>
       
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-gray-50 p-4">
-          <div class="text-sm font-medium text-gray-700 mb-1">Path</div>
-          <div class="font-mono text-sm text-gray-600 break-all">{{ systemInfo.database.path }}</div>
-        </div>
-        <div class="bg-gray-50 p-4">
-          <div class="text-sm font-medium text-gray-700 mb-1">Status</div>
-          <div :class="getStatusClass(systemInfo.database.status)" class="font-medium">
-            {{ systemInfo.database.status }}
+      <div v-if="loadingActivity" class="p-6 text-center">
+        <i class="ph ph-spinner ph-spin text-2xl text-gray-400"></i>
+        <p class="text-gray-600 mt-2">Loading activity...</p>
+      </div>
+
+      <div v-else-if="recentActivity.length === 0" class="p-6 text-center text-gray-500">
+        <i class="ph ph-clock text-2xl mb-2"></i>
+        <p>No recent activity</p>
+      </div>
+
+      <div v-else class="divide-y divide-gray-200">
+        <div v-for="activity in recentActivity" :key="activity.id" class="p-4 hover:bg-gray-50 transition-colors">
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <i :class="[getActivityIcon(activity.action_type), 'text-sm', getActivityIconClass(activity.action_type)]"></i>
+                <span class="font-medium text-gray-900">{{ getActivityTitle(activity) }}</span>
+                <span v-if="activity.database_context && activity.database_context !== 'master'" 
+                      class="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
+                  {{ activity.database_context }}
+                </span>
+              </div>
+              <p class="text-sm text-gray-600">{{ getActivityDescription(activity) }}</p>
+              <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                <span class="flex items-center gap-1">
+                  <i class="ph ph-user"></i>
+                  {{ activity.username }}
+                </span>
+                <span class="flex items-center gap-1">
+                  <i class="ph ph-clock"></i>
+                  {{ formatRelativeTime(activity.created_at) }}
+                </span>
+                <span v-if="activity.ip_address" class="flex items-center gap-1">
+                  <i class="ph ph-globe"></i>
+                  {{ activity.ip_address }}
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
-        <div v-if="systemInfo.database.stats" class="bg-gray-50 p-4 rounded-lg">
-          <div class="text-sm font-medium text-gray-700 mb-1">Size</div>
-          <div class="text-gray-900">{{ formatFileSize(systemInfo.database.stats.size) }}</div>
-        </div>
-        <div v-if="systemInfo.database.stats" class="bg-gray-50 p-4 rounded-lg">
-          <div class="text-sm font-medium text-gray-700 mb-1">Created</div>
-          <div class="text-gray-900">{{ formatDate(systemInfo.database.stats.created) }}</div>
         </div>
       </div>
       
-      <!-- Journal Mode Section -->
-      <div v-if="systemInfo.database.journalMode" class="mt-4 p-4 border-t border-gray-200">
-        <div class="flex items-center justify-between">
-          <div>
-            <div class="text-sm font-medium text-gray-700 mb-1">Journal Mode</div>
-            <div class="flex items-center gap-2">
-              <span :class="getJournalModeClass(systemInfo.database.journalMode)" 
-                    class="px-2 py-1 text-xs font-medium rounded-full">
-                {{ systemInfo.database.journalMode.toUpperCase() }}
-              </span>
-              <span v-if="getJournalModeDescription(systemInfo.database.journalMode)" 
-                    class="text-xs text-gray-500">
-                {{ getJournalModeDescription(systemInfo.database.journalMode) }}
-              </span>
-            </div>
-          </div>
-          <div v-if="!showJournalSelect">
-            <button @click="startJournalModeEdit"
-                    class="flex items-center gap-1 px-3 py-2 text-sm bg-yellow-50 text-yellow-700 border border-yellow-200 hover:bg-yellow-100 transition-colors">
-              <i class="ph ph-warning"></i>
-              Change Mode
-            </button>
-          </div>
-          <div v-else class="flex items-center gap-2">
-            <select v-model="selectedJournalMode" 
-                    class="px-3 py-2 text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <option v-for="mode in journalModes" :key="mode.value" :value="mode.value">
-                {{ mode.label }}
-              </option>
-            </select>
-            <button @click="changeJournalMode" 
-                    :disabled="changingJournalMode || selectedJournalMode === systemInfo.database.journalMode"
-                    class="px-3 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-              {{ changingJournalMode ? 'Changing...' : 'Apply' }}
-            </button>
-            <button @click="cancelJournalModeChange"
-                    class="px-3 py-2 text-sm bg-gray-500 text-white hover:bg-gray-600 transition-colors">
-              Cancel
-            </button>
-          </div>
-        </div>
-        <div v-if="journalModeWarning" :class="getWarningClass()" class="mt-3 p-3 text-sm">
-          <i :class="getWarningIconClass()" class="mr-1"></i>
-          {{ journalModeWarning }}
-        </div>
+      <div class="border-t border-gray-200 p-4 text-center">
+        <button @click="$router.push('/panel/audit')" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+          View Full Audit Log
+        </button>
       </div>
     </Card>
 
@@ -142,9 +132,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCollectionsStore } from '@/store/collections'
+import { useDatabasesStore } from '@/store/databases'
 import api from '@/api'
 import Card from '@/components/ui/Card.vue'
 import DataTable from '@/components/ui/DataTable.vue'
@@ -152,6 +143,7 @@ import Button from '@/components/ui/Button.vue'
 
 const router = useRouter()
 const collectionsStore = useCollectionsStore()
+const databasesStore = useDatabasesStore()
 
 const loading = computed(() => collectionsStore.loading)
 const collectionsCount = computed(() => collectionsStore.collections.length)
@@ -160,21 +152,9 @@ const totalRecords = computed(() => {
     return sum + (collection.record_count || 0)
   }, 0)
 })
-const systemInfo = ref(null)
-const showJournalSelect = ref(false)
-const selectedJournalMode = ref('')
-const changingJournalMode = ref(false)
-const journalModeWarning = ref('')
-const journalModeChangeSuccess = ref(true)
+const recentActivity = ref([])
+const loadingActivity = ref(false)
 
-const journalModes = [
-  { value: 'DELETE', label: 'DELETE (Default - Safe)' },
-  { value: 'TRUNCATE', label: 'TRUNCATE (Faster cleanup)' },
-  { value: 'PERSIST', label: 'PERSIST (Minimal I/O)' },
-  { value: 'WAL', label: 'WAL (Best performance)' },
-  { value: 'MEMORY', label: 'MEMORY (Unsafe - RAM only)' },
-  { value: 'OFF', label: 'OFF (Dangerous - No safety)' }
-]
 
 const recentCollections = computed(() => {
   return [...collectionsStore.collections]
@@ -190,13 +170,8 @@ const tableColumns = [
 ]
 
 const statusIconClass = computed(() => {
-  const status = systemInfo.value?.database?.status
-  return status === 'connected' ? 'text-green-600' : status === 'error' ? 'text-red-600' : 'text-gray-600'
+  return 'text-green-600' // Default to healthy status for collections/records
 })
-
-const getStatusClass = (status) => {
-  return status === 'connected' ? 'text-green-600' : status === 'error' ? 'text-red-600' : 'text-gray-600'
-}
 
 const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString()
@@ -214,133 +189,121 @@ const viewCollection = (name) => {
   router.push(`/panel/collections/${name}`)
 }
 
-const fetchSystemInfo = async () => {
+const fetchRecentActivity = async () => {
+  loadingActivity.value = true
   try {
-    const response = await api.get('/system')
-    systemInfo.value = response.data
+    const response = await api.get('/audit/recent?limit=10')
+    recentActivity.value = response.data.data || []
   } catch (error) {
-    console.error('Failed to fetch system info:', error)
-  }
-}
-
-const getJournalModeClass = (mode) => {
-  const modeUpper = mode.toUpperCase()
-  switch (modeUpper) {
-    case 'DELETE':
-    case 'TRUNCATE':
-    case 'PERSIST':
-      return 'bg-green-100 text-green-800'
-    case 'WAL':
-      return 'bg-blue-100 text-blue-800'
-    case 'MEMORY':
-      return 'bg-yellow-100 text-yellow-800'
-    case 'OFF':
-      return 'bg-red-100 text-red-800'
-    default:
-      return 'bg-gray-100 text-gray-800'
-  }
-}
-
-const getJournalModeDescription = (mode) => {
-  const modeUpper = mode.toUpperCase()
-  switch (modeUpper) {
-    case 'DELETE':
-      return 'Default mode'
-    case 'TRUNCATE':
-      return 'Faster cleanup'
-    case 'PERSIST':
-      return 'Minimal I/O'
-    case 'WAL':
-      return 'Best performance'
-    case 'MEMORY':
-      return 'RAM only - unsafe'
-    case 'OFF':
-      return 'No safety - dangerous'
-    default:
-      return ''
-  }
-}
-
-const changeJournalMode = async () => {
-  const mode = selectedJournalMode.value
-  if (!mode || mode === systemInfo.value.database.journalMode) return
-  
-  // Show confirmation for dangerous modes
-  if (mode === 'MEMORY' || mode === 'OFF') {
-    const dangerousMessages = {
-      'MEMORY': 'MEMORY mode stores the journal in RAM. If the application crashes, the database may become corrupted. Are you sure?',
-      'OFF': 'OFF mode disables all journaling. Transactions will not be safe and data corruption is likely on crashes. Are you sure?'
-    }
-    
-    if (!confirm(dangerousMessages[mode])) {
-      return
-    }
-  }
-  
-  changingJournalMode.value = true
-  journalModeWarning.value = ''
-  
-  try {
-    const response = await api.put('/system/journal-mode', { mode })
-    
-    // Update system info with the actual mode returned
-    systemInfo.value.database.journalMode = response.data.journalMode
-    
-    // Check if the change was successful
-    if (!response.data.success) {
-      // Mode change failed - show error-style warning
-      journalModeChangeSuccess.value = false
-      journalModeWarning.value = response.data.warning
-    } else {
-      // Mode change succeeded - show informational warning if any
-      journalModeChangeSuccess.value = true
-      if (response.data.warning) {
-        journalModeWarning.value = response.data.warning
-      }
-      
-      // Reset UI state only on successful change
-      showJournalSelect.value = false
-      selectedJournalMode.value = ''
-    }
-    
-  } catch (error) {
-    console.error('Failed to change journal mode:', error)
-    journalModeWarning.value = error.response?.data?.error || 'Failed to change journal mode'
+    console.error('Failed to fetch recent activity:', error)
+    recentActivity.value = []
   } finally {
-    changingJournalMode.value = false
+    loadingActivity.value = false
   }
 }
 
-const startJournalModeEdit = () => {
-  showJournalSelect.value = true
-  // Pre-select the current journal mode
-  selectedJournalMode.value = systemInfo.value.database.journalMode.toUpperCase()
-  journalModeWarning.value = ''
+const getActivityIcon = (actionType) => {
+  switch (actionType) {
+    case 'database_created':
+    case 'collection_created':
+      return 'ph ph-plus-circle'
+    case 'database_updated':
+    case 'collection_updated':
+      return 'ph ph-pencil'
+    case 'database_deleted':
+    case 'collection_deleted':
+      return 'ph ph-trash'
+    case 'database_set_default':
+      return 'ph ph-star'
+    case 'collection_truncated':
+      return 'ph ph-eraser'
+    case 'database_journal_mode_changed':
+      return 'ph ph-gear'
+    default:
+      return 'ph ph-activity'
+  }
 }
 
-const getWarningClass = () => {
-  return journalModeChangeSuccess.value 
-    ? 'bg-yellow-50 border border-yellow-200 text-yellow-800'
-    : 'bg-red-50 border border-red-200 text-red-800'
+const getActivityIconClass = (actionType) => {
+  if (actionType.includes('created')) return 'text-green-600'
+  if (actionType.includes('updated')) return 'text-blue-600'  
+  if (actionType.includes('deleted')) return 'text-red-600'
+  if (actionType.includes('truncated')) return 'text-orange-600'
+  return 'text-gray-600'
 }
 
-const getWarningIconClass = () => {
-  return journalModeChangeSuccess.value 
-    ? 'ph ph-warning'
-    : 'ph ph-x-circle'
+const getActivityTitle = (activity) => {
+  const entityName = activity.entity_name || activity.entity_id
+  switch (activity.action_type) {
+    case 'database_created':
+      return `Database Created: ${entityName}`
+    case 'database_updated':
+      return `Database Updated: ${entityName}`
+    case 'database_deleted':
+      return `Database Deleted: ${entityName}`
+    case 'database_set_default':
+      return `Default Database Set: ${entityName}`
+    case 'collection_created':
+      return `Collection Created: ${entityName}`
+    case 'collection_updated':
+      return `Collection Updated: ${entityName}`
+    case 'collection_deleted':
+      return `Collection Deleted: ${entityName}`
+    case 'collection_truncated':
+      return `Collection Truncated: ${entityName}`
+    case 'database_journal_mode_changed':
+      return `Journal Mode Changed: ${entityName}`
+    default:
+      return activity.action_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+  }
 }
 
-const cancelJournalModeChange = () => {
-  showJournalSelect.value = false
-  selectedJournalMode.value = ''
-  journalModeWarning.value = ''
-  journalModeChangeSuccess.value = true
+const getActivityDescription = (activity) => {
+  switch (activity.action_type) {
+    case 'database_created':
+      return `New database created with WAL mode enabled`
+    case 'collection_created':
+      const fieldCount = activity.details?.field_count || 0
+      return `New collection created with ${fieldCount} fields`
+    case 'collection_truncated':
+      const deletedCount = activity.details?.records_deleted || 0
+      return `All ${deletedCount} records removed from collection`
+    case 'database_journal_mode_changed':
+      const { old_mode, new_mode } = activity.details || {}
+      return `Journal mode changed from ${old_mode} to ${new_mode}`
+    default:
+      return `Action performed on ${activity.entity_type}`
+  }
 }
+
+const formatRelativeTime = (dateString) => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now - date
+  const diffMinutes = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMinutes / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffMinutes < 1) return 'just now'
+  if (diffMinutes < 60) return `${diffMinutes}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays < 7) return `${diffDays}d ago`
+  return formatDate(dateString)
+}
+
+
+// Watch for database changes and refresh data
+watch(() => databasesStore.currentDatabase, async () => {
+  await Promise.all([
+    collectionsStore.fetchCollections(),
+    fetchRecentActivity()
+  ])
+})
 
 onMounted(async () => {
   await Promise.all([
     collectionsStore.fetchCollections(),
-    fetchSystemInfo()
+    fetchRecentActivity()
   ])
 })
 </script>
