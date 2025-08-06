@@ -1,14 +1,17 @@
-name: Publish to NPM
+name: Manual Publish to NPM
 
 on:
-  release:
-    types: [created]
   workflow_dispatch:
     inputs:
       version:
         description: 'Version to publish (e.g., 1.0.1)'
         required: true
         type: string
+      create_release:
+        description: 'Create GitHub release'
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   publish:
@@ -35,22 +38,67 @@ jobs:
         working-directory: ./lib/admin
         run: npm run build
         
-      - name: Update version (manual trigger only)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Update version
         run: |
           npm version ${{ github.event.inputs.version }} --no-git-tag-version
+          
+      - name: Commit version changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add package.json package-lock.json
+          git commit -m "Release version ${{ github.event.inputs.version }}"
+          
+      - name: Create Git tag
+        run: |
+          git tag v${{ github.event.inputs.version }}
+          git push origin main --tags
           
       - name: Publish to NPM
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           
-      - name: Create version tag (manual trigger only)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Generate release notes
+        if: github.event.inputs.create_release == 'true'
+        id: release-notes
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add package.json package-lock.json
-          git commit -m "Release version ${{ github.event.inputs.version }}"
-          git tag v${{ github.event.inputs.version }}
-          git push origin v${{ github.event.inputs.version }}
+          # Get commit messages since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+          
+          if [ -n "$LAST_TAG" ]; then
+            COMMITS=$(git log ${LAST_TAG}..HEAD~1 --pretty=format:"- %s" --no-merges)
+          else
+            COMMITS=$(git log --pretty=format:"- %s" --no-merges -10 HEAD~1)
+          fi
+          
+          # Create release notes
+          cat << EOF > release_notes.md
+          # Release ${{ github.event.inputs.version }}
+          
+          ## Changes
+          
+          $COMMITS
+          
+          ## Installation
+          
+          \`\`\`bash
+          npm install @digitalnodecom/node-red-contrib-panel@${{ github.event.inputs.version }}
+          \`\`\`
+          
+          ## Admin Panel
+          
+          After installation, access the admin panel at: \`http://localhost:1880/panel\`
+          EOF
+          
+      - name: Create GitHub Release
+        if: github.event.inputs.create_release == 'true'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          release_name: ${{ github.event.inputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false

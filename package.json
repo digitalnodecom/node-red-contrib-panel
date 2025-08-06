@@ -1,6 +1,6 @@
 {
   "name": "@digitalnodecom/node-red-contrib-panel",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "A Node-RED plugin with PocketBase-like admin panel backed by SQLite",
   "keywords": [
     "node-red",
@@ -10,7 +10,7 @@
     "panel",
     "crud"
   ],
-  "author": "DigitalNodeCom",
+  "author": "TJ Kralev",
   "license": "MIT",
   "publishConfig": {
     "access": "public",
