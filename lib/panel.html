@@ -1127,7 +1127,7 @@
 
 <!-- Panel Event Listener Node -->
 <script type="text/javascript">
-    RED.nodes.registerType('listener', {
+    RED.nodes.registerType('listen', {
         category: 'Panel',
         color: '#ffcccb',
         defaults: {
@@ -1143,7 +1143,7 @@
         outputs: 1,
         icon: "node-red-panel.svg",
         label: function() {
-            return this.name || "listener";
+            return this.name || "listen";
         },
         oneditprepare: function() {
             const node = this;
@@ -1271,7 +1271,7 @@
     });
 </script>
 
-<script type="text/html" data-template-name="listener">
+<script type="text/html" data-template-name="listen">
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
@@ -1332,7 +1332,7 @@
     </div>
 </script>
 
-<script type="text/html" data-help-name="listener">
+<script type="text/html" data-help-name="listen">
     <p>Listen for database events from Panel collections with events enabled.</p>
     <h3>Configuration</h3>
     <ul>
