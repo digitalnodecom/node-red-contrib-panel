@@ -1,6 +1,6 @@
 {
   "name": "@digitalnodecom/node-red-contrib-panel",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A Node-RED plugin with PocketBase-like admin panel backed by SQLite",
   "keywords": [
     "node-red",
