@@ -8,14 +8,24 @@
                 return;
             }
             
+            // Look for the menu button (hamburger icon) - try multiple possible selectors
+            const menuButton = document.getElementById('red-ui-header-button-sidemenu') || 
+                              document.querySelector('#red-ui-header .fa-bars')?.parentElement ||
+                              document.querySelector('[data-toggle="dropdown"]');
+                              
             const deployButton = document.getElementById('red-ui-header-button-deploy');
-            if (deployButton && deployButton.parentElement) {
+            
+            // Prefer positioning relative to menu button, fall back to deploy button
+            const targetButton = menuButton || deployButton;
+            
+            if (targetButton && targetButton.parentElement) {
                 // Create the panel button
                 const panelButton = document.createElement('a');
                 panelButton.id = 'red-ui-header-button-panel';
                 panelButton.className = 'button';
                 panelButton.href = '/panel';
                 panelButton.target = '_blank';
+                panelButton.title = 'Open Panel';
                 panelButton.style.paddingTop = '0';
                 panelButton.style.paddingBottom = '0';
                 panelButton.style.width = '30px';
@@ -23,10 +33,11 @@
                 panelButton.style.display = 'inline-flex';
                 panelButton.style.alignItems = 'center';
                 panelButton.style.justifyContent = 'center';
+                panelButton.style.marginRight = '5px';
                 panelButton.innerHTML = '<svg width="30" height="30" viewBox="0 0 448 448" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M392 0H56C25.0721 0 0 25.0721 0 56V392C0 422.928 25.0721 448 56 448H392C422.928 448 448 422.928 448 392V56C448 25.0721 422.928 0 392 0Z" fill="#8F0000"/><path d="M224 90.1875C156.292 90.1875 103.25 121.13 103.25 160.625V281.375C103.25 320.87 156.292 351.812 224 351.812C291.708 351.812 344.75 320.87 344.75 281.375V160.625C344.75 121.13 291.708 90.1875 224 90.1875ZM324.625 221C324.625 233.1 314.713 245.439 297.444 254.86C277.998 265.464 251.911 271.312 224 271.312C196.089 271.312 170.002 265.464 150.556 254.86C133.287 245.439 123.375 233.1 123.375 221V200.07C144.833 218.937 181.524 231.062 224 231.062C266.476 231.062 303.167 218.887 324.625 200.07V221ZM150.556 126.765C170.002 116.161 196.089 110.312 224 110.312C251.911 110.312 277.998 116.161 297.444 126.765C314.713 136.186 324.625 148.525 324.625 160.625C324.625 172.725 314.713 185.064 297.444 194.485C277.998 205.089 251.911 210.938 224 210.938C196.089 210.938 170.002 205.089 150.556 194.485C133.287 185.064 123.375 172.725 123.375 160.625C123.375 148.525 133.287 136.186 150.556 126.765ZM297.444 315.235C277.998 325.839 251.911 331.688 224 331.688C196.089 331.688 170.002 325.839 150.556 315.235C133.287 305.814 123.375 293.475 123.375 281.375V260.445C144.833 279.312 181.524 291.438 224 291.438C266.476 291.438 303.167 279.262 324.625 260.445V281.375C324.625 293.475 314.713 305.814 297.444 315.235Z" fill="white"/></svg>';
                 
-                // Insert before the deploy button
-                deployButton.parentElement.insertBefore(panelButton, deployButton);
+                // Insert before the target button (menu or deploy)
+                targetButton.parentElement.insertBefore(panelButton, targetButton);
             } else {
                 // If deploy button not found yet, try again
                 setTimeout(addPanelButton, 500);

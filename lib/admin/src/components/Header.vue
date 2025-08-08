@@ -26,6 +26,12 @@
         </div>
       </div>
       <div class="flex items-center gap-2">
+        <!-- User Info -->
+        <div v-if="currentUser" class="flex items-center gap-2 text-xs text-gray-300 mr-2">
+          <i class="ph ph-user-circle text-sm"></i>
+          <span>{{ currentUser.username }}</span>
+        </div>
+        
         <a
           href="/"
           class="p-2 text-gray-300 hover:text-white hover:bg-gray-800 transition-colors rounded inline-flex items-center justify-center"
@@ -51,6 +57,7 @@ import { computed, ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDatabasesStore } from '@/store/databases'
 import { useCollectionsStore } from '@/store/collections'
+import { useAuth } from '@/composables/useAuth'
 import panelLogoUrl from '@/assets/images/node-red-panel.svg'
 import nodeRedLogoUrl from '@/assets/images/node-red.svg'
 
@@ -58,6 +65,7 @@ const route = useRoute()
 const router = useRouter()
 const databasesStore = useDatabasesStore()
 const collectionsStore = useCollectionsStore()
+const { currentUser } = useAuth()
 
 const switchingDatabase = ref(false)
 const databases = computed(() => databasesStore.databases)
@@ -102,10 +110,16 @@ const refresh = () => {
 }
 
 onMounted(async () => {
+  console.log('[HEADER] Header component mounted')
+  
   // Load databases on mount
+  console.log('[HEADER] Fetching databases...')
   await databasesStore.fetchDatabases()
+  console.log('[HEADER] Databases fetched')
   
   // Initialize current database from store
+  console.log('[HEADER] Initializing current database...')
   databasesStore.initializeCurrentDatabase()
+  console.log('[HEADER] Header initialization complete')
 })
 </script>
