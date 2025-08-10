@@ -193,12 +193,18 @@
             <select id="node-input-database" style="width:70%;">
                 <option value="master">Loading databases...</option>
             </select>
+            <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                <i class="fa fa-info-circle"></i> Optional: Defaults to master. Use <code>msg.database</code> to override.
+            </div>
         </div>
         <div class="form-row">
             <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
             <select id="node-input-collection" style="width:70%;">
                 <option value="">Loading collections...</option>
             </select>
+            <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                <i class="fa fa-info-circle"></i> Required unless provided via <code>msg.collection</code>.
+            </div>
         </div>
         <div class="form-row">
             <label for="node-input-operation"><i class="fa fa-cog"></i> Operation</label>
@@ -207,10 +213,16 @@
                 <option value="findOne">Find One</option>
                 <option value="count">Count</option>
             </select>
+            <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                <i class="fa fa-info-circle"></i> Operation type. Use <code>msg.operation</code> to override (find, findOne, count).
+            </div>
         </div>
         <div class="form-row">
             <label for="node-input-query"><i class="fa fa-filter"></i> Query</label>
             <input type="text" id="node-input-query" placeholder='{"id": 1}'>
+            <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                <i class="fa fa-info-circle"></i> Query parameters as JSON. Use <code>msg.query</code> to override.
+            </div>
         </div>
     </div>
     
@@ -381,17 +393,25 @@
             <select id="node-input-database" style="width:70%;">
                 <option value="master">Loading databases...</option>
             </select>
+            <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                <i class="fa fa-info-circle"></i> Optional: Defaults to master. Use <code>msg.database</code> to override.
+            </div>
         </div>
         <div class="form-row">
             <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
             <select id="node-input-collection" style="width:70%;">
                 <option value="">Loading collections...</option>
             </select>
+            <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                <i class="fa fa-info-circle"></i> Required unless provided via <code>msg.collection</code>.
+            </div>
         </div>
         <div class="form-row">
             <label for="node-input-data"><i class="fa fa-edit"></i> Data (optional)</label>
             <input type="text" id="node-input-data" placeholder='{"title": "Sample Article", "content": "Lorem ipsum...", "published": true}'>
-            <div class="form-tips">Optional: Static data for testing. msg.payload takes precedence.</div>
+            <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                <i class="fa fa-info-circle"></i> Optional: Static JSON data for testing. <code>msg.payload</code> takes precedence.
+            </div>
         </div>
     </div>
     
@@ -564,17 +584,25 @@
             <select id="node-input-database" style="width:70%;">
                 <option value="master">Loading databases...</option>
             </select>
+            <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                <i class="fa fa-info-circle"></i> Optional: Defaults to master. Use <code>msg.database</code> to override.
+            </div>
         </div>
         <div class="form-row">
             <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
             <select id="node-input-collection" style="width:70%;">
                 <option value="">Loading collections...</option>
             </select>
+            <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                <i class="fa fa-info-circle"></i> Required unless provided via <code>msg.collection</code>.
+            </div>
         </div>
         <div class="form-row">
             <label for="node-input-data"><i class="fa fa-edit"></i> Data (optional)</label>
             <input type="text" id="node-input-data" placeholder='{"id": 1, "title": "Updated Title", "published": false}'>
-            <div class="form-tips">Optional: Static data for testing. msg.payload takes precedence.</div>
+            <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                <i class="fa fa-info-circle"></i> Optional: Static JSON with id and fields. <code>msg.payload</code> takes precedence.
+            </div>
         </div>
     </div>
     
@@ -739,17 +767,25 @@
             <select id="node-input-database" style="width:70%;">
                 <option value="master">Loading databases...</option>
             </select>
+            <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                <i class="fa fa-info-circle"></i> Optional: Defaults to master. Use <code>msg.database</code> to override.
+            </div>
         </div>
         <div class="form-row">
             <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
             <select id="node-input-collection" style="width:70%;">
                 <option value="">Loading collections...</option>
             </select>
+            <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                <i class="fa fa-info-circle"></i> Required unless provided via <code>msg.collection</code>.
+            </div>
         </div>
         <div class="form-row">
             <label for="node-input-data"><i class="fa fa-key"></i> Record ID (optional)</label>
             <input type="text" id="node-input-data" placeholder="5">
-            <div class="form-tips">Optional: Static record ID for testing. msg.payload takes precedence.</div>
+            <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                <i class="fa fa-info-circle"></i> Optional: Static record ID for testing. <code>msg.payload</code> takes precedence.
+            </div>
         </div>
     </div>
     
@@ -907,22 +943,23 @@
             }
             
             function loadCollectionFields(collection) {
-                $.getJSON(`/panel/api/collections/${collection}`)
-                    .done(function(data) {
+                const database = $("#node-input-database").val() || 'master';
+                $.getJSON(`/panel/node-collection-fields?collection=${collection}&database=${database}`)
+                    .done(function(fields) {
                         const container = $('#field-checkboxes');
                         container.empty();
                         
-                        data.fields.forEach(function(field) {
+                        fields.forEach(function(field) {
                             const uniqueIcon = field.unique ? ' <i class="fa fa-key" style="color: gold; margin-left: 4px;" title="Unique field"></i>' : '';
                             const indexIcon = field.indexable ? ' <i class="fa fa-flash" style="color: green; margin-left: 4px;" title="Indexed field"></i>' : '';
                             
                             const checked = node.matchFields && node.matchFields.includes(field.name) ? 'checked' : '';
                             
                             container.append(`
-                                <label style="display: block; padding: 4px 0; cursor: pointer;">
-                                    <input type="checkbox" value="${field.name}" ${checked} style="margin-right: 8px;">
+                                <label style="display: inline-block; padding: 4px 8px; margin-right: 10px; margin-bottom: 6px; cursor: pointer; white-space: nowrap;">
+                                    <input type="checkbox" value="${field.name}" ${checked} style="margin-right: 6px;">
                                     <strong>${field.name}</strong> 
-                                    <span style="color: #666;">(${field.type})</span>
+                                    <span style="color: #666; font-size: 11px;">(${field.type})</span>
                                     ${uniqueIcon}${indexIcon}
                                 </label>
                             `);
@@ -999,6 +1036,9 @@
         <select id="node-input-database" style="width: 70%;">
             <option value="master">Loading databases...</option>
         </select>
+        <div style="font-size: 11px; color: #666; margin-top: 4px;">
+            <i class="fa fa-info-circle"></i> Optional: Defaults to master. Use <code>msg.database</code> to override.
+        </div>
     </div>
     
     <div class="form-row">
@@ -1006,17 +1046,20 @@
         <select id="node-input-collection" style="width: 70%;">
             <option value="">Select collection...</option>
         </select>
+        <div style="font-size: 11px; color: #666; margin-top: 4px;">
+            <i class="fa fa-info-circle"></i> Required unless provided via <code>msg.collection</code>.
+        </div>
     </div>
 
     <!-- Dynamic Match Fields Selector -->
     <div class="form-row" id="matchFields-section" style="display:none;">
         <label><i class="fa fa-key"></i> Match Fields</label>
-        <div style="margin-left: 105px; border: 1px solid #ccc; padding: 10px; border-radius: 3px; background-color: #f9f9f9;">
-            <div id="field-checkboxes" style="max-height: 150px; overflow-y: auto;">
+        <div style="margin-left: 105px; border: 1px solid #ccc; padding: 10px; border-radius: 3px; background-color: #f9f9f9; max-width: 500px;">
+            <div id="field-checkboxes" style="max-height: 120px; overflow-y: auto; line-height: 1.4;">
                 <!-- Dynamically populated field checkboxes -->
             </div>
             <div style="margin-top: 8px; font-size: 11px; color: #666;">
-                <i class="fa fa-info-circle"></i> Select one or more fields to match existing records. Records with matching values in ALL selected fields will be updated.
+                <i class="fa fa-info-circle"></i> Select one or more fields to match existing records. Records with matching values in ALL selected fields will be updated. Use <code>msg.matchFields</code> array to override.
             </div>
         </div>
     </div>
@@ -1024,23 +1067,80 @@
     <!-- Operation Mode with Visual Icons -->
     <div class="form-row" id="operation-mode-section" style="display:none;">
         <label><i class="fa fa-cogs"></i> Operation</label>
-        <div style="margin-left: 105px;">
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-                <label style="display: flex; align-items: center; cursor: pointer; padding: 4px 0;">
-                    <input type="radio" name="node-input-mode" value="upsert" checked style="margin-right: 8px;">
-                    <i class="fa fa-refresh" style="color: #4CAF50; margin-right: 8px; width: 16px;"></i>
-                    <strong>Upsert</strong> - Insert new or update existing records
+        <div style="margin-left: 105px; width: calc(100% - 105px); max-width: 500px;">
+                <style>
+                    /* Override Node-RED's default input width for radio buttons */
+                    #operation-mode-section input[type="radio"] {
+                        width: auto !important;
+                        margin-right: 8px !important;
+                    }
+                    #operation-mode-section .upsert-mode-option {
+                        width: auto !important;
+                        display: flex !important;
+                        margin-bottom: 0 !important;
+                    }
+                    .upsert-mode-option:hover {
+                        background: #f0f0f0 !important;
+                        border-color: #bbb !important;
+                        transform: translateY(-1px);
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    }
+                    .upsert-mode-option:has(input:checked) {
+                        background: #e8f5e8 !important;
+                        border-color: #4CAF50 !important;
+                        box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
+                    }
+                    .upsert-mode-option:has(input[value="updateOnly"]:checked) {
+                        background: #e3f2fd !important;
+                        border-color: #2196F3 !important;
+                        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+                    }
+                    .upsert-mode-option:has(input[value="insertOnly"]:checked) {
+                        background: #fff3e0 !important;
+                        border-color: #FF9800 !important;
+                        box-shadow: 0 2px 8px rgba(255, 152, 0, 0.2);
+                    }
+                </style>
+            <div style="display: flex; flex-direction: column; gap: 15px; padding: 10px 0;">
+                <label class="upsert-mode-option" style="display: flex; align-items: flex-start; cursor: pointer; padding: 10px 15px; border: 1px solid #ddd; border-radius: 6px; background: #f9f9f9; transition: all 0.2s ease;">
+                    <input type="radio" name="node-input-mode" value="upsert" checked style="margin-right: 15px; margin-top: 3px; transform: scale(1.1);">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; margin-bottom: 6px;">
+                            <i class="fa fa-refresh" style="color: #4CAF50; margin-right: 10px; width: 18px; font-size: 16px;"></i>
+                            <strong style="font-size: 15px; color: #333;">Upsert</strong>
+                        </div>
+                        <div style="color: #666; font-size: 13px; line-height: 1.5;">
+                            Insert new records or update existing ones based on match criteria
+                        </div>
+                    </div>
                 </label>
-                <label style="display: flex; align-items: center; cursor: pointer; padding: 4px 0;">
-                    <input type="radio" name="node-input-mode" value="updateOnly" style="margin-right: 8px;">
-                    <i class="fa fa-edit" style="color: #2196F3; margin-right: 8px; width: 16px;"></i>
-                    <strong>Update Only</strong> - Only update if record exists (skip insert)
+                <label class="upsert-mode-option" style="display: flex; align-items: flex-start; cursor: pointer; padding: 10px 15px; border: 1px solid #ddd; border-radius: 6px; background: #f9f9f9; transition: all 0.2s ease;">
+                    <input type="radio" name="node-input-mode" value="updateOnly" style="margin-right: 15px; margin-top: 3px; transform: scale(1.1);">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; margin-bottom: 6px;">
+                            <i class="fa fa-edit" style="color: #2196F3; margin-right: 10px; width: 18px; font-size: 16px;"></i>
+                            <strong style="font-size: 15px; color: #333;">Update Only</strong>
+                        </div>
+                        <div style="color: #666; font-size: 13px; line-height: 1.5;">
+                            Only update existing records, skip insertion of new records
+                        </div>
+                    </div>
                 </label>
-                <label style="display: flex; align-items: center; cursor: pointer; padding: 4px 0;">
-                    <input type="radio" name="node-input-mode" value="insertOnly" style="margin-right: 8px;">
-                    <i class="fa fa-plus" style="color: #FF9800; margin-right: 8px; width: 16px;"></i>
-                    <strong>Insert Only</strong> - Only insert if record doesn't exist (skip update)
+                <label class="upsert-mode-option" style="display: flex; align-items: flex-start; cursor: pointer; padding: 10px 15px; border: 1px solid #ddd; border-radius: 6px; background: #f9f9f9; transition: all 0.2s ease;">
+                    <input type="radio" name="node-input-mode" value="insertOnly" style="margin-right: 15px; margin-top: 3px; transform: scale(1.1);">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; margin-bottom: 6px;">
+                            <i class="fa fa-plus" style="color: #FF9800; margin-right: 10px; width: 18px; font-size: 16px;"></i>
+                            <strong style="font-size: 15px; color: #333;">Insert Only</strong>
+                        </div>
+                        <div style="color: #666; font-size: 13px; line-height: 1.5;">
+                            Only insert new records, skip updates of existing records
+                        </div>
+                    </div>
                 </label>
+            </div>
+            <div style="font-size: 11px; color: #666; margin-top: 8px;">
+                <i class="fa fa-info-circle"></i> Operation mode. Use <code>msg.mode</code> to override (upsert, updateOnly, insertOnly).
             </div>
         </div>
     </div>
