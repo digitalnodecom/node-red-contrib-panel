@@ -78,28 +78,28 @@
                   <div class="flex items-center">
                     <div class="flex-shrink-0 h-10 w-10">
                       <div class="h-10 w-10 rounded-lg flex items-center justify-center" :class="{
-                        'bg-yellow-100': database.is_master,
-                        'bg-blue-100': database.is_default && !database.is_master,
-                        'bg-gray-100': !database.is_default && !database.is_master
+                        'bg-yellow-100': database.is_main,
+                        'bg-blue-100': database.is_default && !database.is_main,
+                        'bg-gray-100': !database.is_default && !database.is_main
                       }">
                         <i class="ph" :class="{
-                          'ph-crown text-yellow-600': database.is_master,
-                          'ph-database text-blue-600': database.is_default && !database.is_master,
-                          'ph-database text-gray-600': !database.is_default && !database.is_master
+                          'ph-crown text-yellow-600': database.is_main,
+                          'ph-database text-blue-600': database.is_default && !database.is_main,
+                          'ph-database text-gray-600': !database.is_default && !database.is_main
                         }"></i>
                       </div>
                     </div>
                     <div class="ml-4">
                       <div class="text-sm font-medium text-gray-900 flex items-center gap-2">
                         {{ database.display_name }}
-                        <span v-if="database.is_master" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                          Master
+                        <span v-if="database.is_main" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                          Main
                         </span>
                         <span v-if="database.is_default" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
                           Default
                         </span>
                       </div>
-                      <div class="text-sm text-gray-500">{{ database.name }}.db</div>
+                      <div class="text-sm text-gray-500">{{ database.file_path }}</div>
                       <div v-if="database.description" class="text-sm text-gray-500 mt-1">{{ database.description }}</div>
                     </div>
                   </div>
@@ -150,7 +150,7 @@
                     </button>
                     <button 
                       @click="deleteDatabase(database)"
-                      :disabled="database.is_master"
+                      :disabled="database.is_main"
                       class="px-3 py-1 text-sm text-red-600 border border-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                     >
                       <i class="ph ph-trash"></i>
@@ -242,7 +242,7 @@
               rows="3"
             ></textarea>
           </div>
-          <div v-if="!editingDatabase.is_master">
+          <div v-if="!editingDatabase.is_main">
             <label class="flex items-center">
               <input
                 type="checkbox"
@@ -426,8 +426,8 @@ const updateDatabase = async () => {
 }
 
 const deleteDatabase = async (database) => {
-  if (database.is_master) {
-    alert('Cannot delete master database')
+  if (database.is_main) {
+    alert('Cannot delete main database')
     return
   }
   
@@ -522,7 +522,7 @@ const changeJournalMode = async () => {
   journalModeWarning.value = ''
   
   try {
-    const endpoint = managingDatabase.value.name !== 'master'
+    const endpoint = managingDatabase.value.name !== 'main'
       ? `/databases/${managingDatabase.value.name}/system/journal-mode`
       : '/system/journal-mode'
     const response = await api.put(endpoint, { mode })

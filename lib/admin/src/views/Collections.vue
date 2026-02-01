@@ -4,7 +4,7 @@
       <div class="flex items-center gap-4">
         <div>
           <h2 class="text-2xl font-bold text-gray-900">Manage Collections</h2>
-          <p v-if="databasesStore.currentDatabase !== 'master'" class="text-sm text-gray-600">
+          <p v-if="databasesStore.currentDatabase !== 'main'" class="text-sm text-gray-600">
             Database: {{ databasesStore.currentDatabase }}
           </p>
         </div>

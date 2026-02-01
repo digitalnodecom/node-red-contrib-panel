@@ -1,7 +1,7 @@
 <template>
   <div class="max-w-7xl mx-auto p-6">
     <!-- Database Context Header -->
-    <div v-if="databasesStore.currentDatabase !== 'master'" class="mb-6">
+    <div v-if="databasesStore.currentDatabase !== 'main'" class="mb-6">
       <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div class="flex items-center gap-2">
           <i class="ph ph-database text-blue-600"></i>
@@ -66,7 +66,7 @@
               <div class="flex items-center gap-2 mb-1">
                 <i :class="[getActivityIcon(activity.action_type), 'text-sm', getActivityIconClass(activity.action_type)]"></i>
                 <span class="font-medium text-gray-900">{{ getActivityTitle(activity) }}</span>
-                <span v-if="activity.database_context && activity.database_context !== 'master'" 
+                <span v-if="activity.database_context && activity.database_context !== 'main'" 
                       class="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
                   {{ activity.database_context }}
                 </span>

@@ -4,7 +4,7 @@
       <h2 class="text-2xl font-bold text-gray-900 mb-2">API Explorer</h2>
       <p class="text-gray-600">
         Test your Panel API endpoints
-        <span v-if="databasesStore.currentDatabase !== 'master'" class="ml-2 text-sm font-medium text-blue-600">
+        <span v-if="databasesStore.currentDatabase !== 'main'" class="ml-2 text-sm font-medium text-blue-600">
           (Database: {{ databasesStore.currentDatabase }})
         </span>
       </p>
@@ -318,7 +318,7 @@ const sendRequest = async () => {
     let finalUrl = url.replace('/panel/api', '') || '/'
     
     // If not master database, prepend database context to URL
-    if (databasesStore.currentDatabase !== 'master') {
+    if (databasesStore.currentDatabase !== 'main') {
       // Only add database context for non-system endpoints
       if (!finalUrl.startsWith('/system') && !finalUrl.startsWith('/databases') && !finalUrl.startsWith('/events')) {
         finalUrl = `/databases/${databasesStore.currentDatabase}${finalUrl}`

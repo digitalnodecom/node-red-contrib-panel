@@ -25,9 +25,15 @@
             <span class="font-medium text-gray-700">Plugin Version:</span>
             <span class="ml-2 text-gray-900">{{ systemInfo.plugin_version }}</span>
           </div>
-          <div>
+          <div class="md:col-span-2">
+            <div class="flex items-center justify-between">
+              <span class="font-medium text-gray-700">Current Database:</span>
+              <span class="ml-2 text-gray-900 font-semibold">{{ databaseInfo?.display_name || currentDatabase }}</span>
+            </div>
+          </div>
+          <div class="md:col-span-2">
             <span class="font-medium text-gray-700">Database Location:</span>
-            <span class="ml-2 text-gray-900 text-sm">{{ systemInfo.database_path }}</span>
+            <span class="ml-2 text-gray-900 text-sm break-all">{{ databaseInfo?.file_path || 'Loading...' }}</span>
           </div>
         </div>
       </div>
@@ -48,13 +54,14 @@
           <label class="block text-sm font-medium text-gray-700 mb-2">
             SQLite Journal Mode
           </label>
-          <select 
+          <select
             v-model="journalMode"
             @change="updateJournalMode"
-            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            :disabled="loading"
+            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <option value="DELETE">DELETE (Default)</option>
-            <option value="WAL">WAL (Write-Ahead Logging)</option>
+            <option value="DELETE">DELETE</option>
+            <option value="WAL">WAL (Write-Ahead Logging - Recommended)</option>
             <option value="MEMORY">MEMORY (In-memory journal)</option>
             <option value="OFF">OFF (No journal)</option>
           </select>
@@ -97,30 +104,54 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useDatabasesStore } from '@/store/databases'
 import api from '@/api'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 
+const databasesStore = useDatabasesStore()
 const systemInfo = ref(null)
-const journalMode = ref('DELETE')
+const databaseInfo = ref(null)
+const journalMode = ref('WAL')
 const message = ref('')
 const messageType = ref('success')
+const loading = ref(true)
+
+const currentDatabase = computed(() => databasesStore.currentDatabase)
+const currentDatabaseInfo = computed(() => databasesStore.getCurrentDatabaseInfo)
 
 const fetchSystemInfo = async () => {
   try {
-    const response = await api.get('/system')
-    systemInfo.value = response.data
-    journalMode.value = response.data.journal_mode || 'DELETE'
+    loading.value = true
+
+    // Fetch general system info
+    const systemResponse = await api.get('/system')
+    systemInfo.value = systemResponse.data
+
+    // Fetch database-specific info
+    const dbResponse = await api.get(`/databases/${currentDatabase.value}`)
+    databaseInfo.value = dbResponse.data
+
+    // Get journal mode from database-specific info
+    const dbConnection = await api.get(`/databases/${currentDatabase.value}`)
+    const mode = dbConnection.data.journal_mode || 'WAL'
+
+    journalMode.value = mode.toUpperCase()
+    console.log('Settings: Loaded journal mode for', currentDatabase.value, ':', journalMode.value)
   } catch (error) {
     console.error('Error fetching system info:', error)
+    journalMode.value = 'WAL'
+  } finally {
+    loading.value = false
   }
 }
 
 const updateJournalMode = async () => {
   try {
-    await api.put('/system/journal-mode', { mode: journalMode.value })
+    await api.put(`/databases/${currentDatabase.value}/journal-mode`, { mode: journalMode.value })
     showMessage('Journal mode updated successfully', 'success')
+    fetchSystemInfo() // Reload to confirm change
   } catch (error) {
     console.error('Error updating journal mode:', error)
     showMessage('Failed to update journal mode', 'error')
@@ -129,8 +160,8 @@ const updateJournalMode = async () => {
 
 const vacuumDatabase = async () => {
   try {
-    await api.post('/system/vacuum')
-    showMessage('Database vacuumed successfully', 'success')
+    await api.post(`/databases/${currentDatabase.value}/vacuum`)
+    showMessage(`Database '${currentDatabaseInfo.value?.display_name}' vacuumed successfully`, 'success')
   } catch (error) {
     console.error('Error vacuuming database:', error)
     showMessage('Failed to vacuum database', 'error')
@@ -139,8 +170,8 @@ const vacuumDatabase = async () => {
 
 const analyzeDatabase = async () => {
   try {
-    await api.post('/system/analyze')
-    showMessage('Database analyzed successfully', 'success')
+    await api.post(`/databases/${currentDatabase.value}/analyze`)
+    showMessage(`Database '${currentDatabaseInfo.value?.display_name}' analyzed successfully`, 'success')
   } catch (error) {
     console.error('Error analyzing database:', error)
     showMessage('Failed to analyze database', 'error')
@@ -154,6 +185,11 @@ const showMessage = (text, type) => {
     message.value = ''
   }, 3000)
 }
+
+// Watch for database changes
+watch(currentDatabase, () => {
+  fetchSystemInfo()
+})
 
 onMounted(() => {
   fetchSystemInfo()

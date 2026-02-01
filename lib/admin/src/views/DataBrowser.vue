@@ -4,7 +4,7 @@
       <div class="flex items-center gap-3">
         <div>
           <h2 class="text-2xl font-bold">{{ collectionName }}</h2>
-          <p v-if="databasesStore.currentDatabase !== 'master'" class="text-sm text-gray-600">
+          <p v-if="databasesStore.currentDatabase !== 'main'" class="text-sm text-gray-600">
             Database: {{ databasesStore.currentDatabase }}
           </p>
         </div>
@@ -510,7 +510,7 @@ const savePaginationSettings = () => {
 const fetchRecords = async () => {
   loading.value = true
   try {
-    const endpoint = databasesStore.currentDatabase !== 'master'
+    const endpoint = databasesStore.currentDatabase !== 'main'
       ? `/databases/${databasesStore.currentDatabase}/${collectionName.value}`
       : `/${collectionName.value}`
     const response = await api.get(endpoint, {
@@ -613,7 +613,7 @@ const saveEdit = async (recordId, fieldName) => {
   
   try {
     const record = records.value.find(r => r.id === recordId)
-    const endpoint = databasesStore.currentDatabase !== 'master'
+    const endpoint = databasesStore.currentDatabase !== 'main'
       ? `/databases/${databasesStore.currentDatabase}/${collectionName.value}/${recordId}`
       : `/${collectionName.value}/${recordId}`
     await api.put(endpoint, {
@@ -727,7 +727,7 @@ const confirmDeleteAction = async () => {
   if (!recordToDelete.value) return
   
   try {
-    const endpoint = databasesStore.currentDatabase !== 'master'
+    const endpoint = databasesStore.currentDatabase !== 'main'
       ? `/databases/${databasesStore.currentDatabase}/${collectionName.value}/${recordToDelete.value.id}`
       : `/${collectionName.value}/${recordToDelete.value.id}`
     await api.delete(endpoint)
@@ -749,12 +749,12 @@ const closeDialog = () => {
 const handleSave = async (data) => {
   try {
     if (editingRecord.value) {
-      const endpoint = databasesStore.currentDatabase !== 'master'
+      const endpoint = databasesStore.currentDatabase !== 'main'
         ? `/databases/${databasesStore.currentDatabase}/${collectionName.value}/${editingRecord.value.id}`
         : `/${collectionName.value}/${editingRecord.value.id}`
       await api.put(endpoint, data)
     } else {
-      const endpoint = databasesStore.currentDatabase !== 'master'
+      const endpoint = databasesStore.currentDatabase !== 'main'
         ? `/databases/${databasesStore.currentDatabase}/${collectionName.value}`
         : `/${collectionName.value}`
       await api.post(endpoint, data)
@@ -791,7 +791,7 @@ onMounted(async () => {
   if (isSystemTable.value) {
     // For system tables, get column info via a direct request
     try {
-      const endpoint = databasesStore.currentDatabase !== 'master'
+      const endpoint = databasesStore.currentDatabase !== 'main'
         ? `/databases/${databasesStore.currentDatabase}/collections?system=true`
         : '/collections?system=true'
       const tableResponse = await api.get(endpoint)
