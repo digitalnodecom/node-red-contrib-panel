@@ -7,17 +7,17 @@
             if (document.getElementById('red-ui-header-button-panel')) {
                 return;
             }
-            
+
             // Look for the menu button (hamburger icon) - try multiple possible selectors
-            const menuButton = document.getElementById('red-ui-header-button-sidemenu') || 
+            const menuButton = document.getElementById('red-ui-header-button-sidemenu') ||
                               document.querySelector('#red-ui-header .fa-bars')?.parentElement ||
                               document.querySelector('[data-toggle="dropdown"]');
-                              
+
             const deployButton = document.getElementById('red-ui-header-button-deploy');
-            
+
             // Prefer positioning relative to menu button, fall back to deploy button
             const targetButton = menuButton || deployButton;
-            
+
             if (targetButton && targetButton.parentElement) {
                 // Create the panel button
                 const panelButton = document.createElement('a');
@@ -35,7 +35,7 @@
                 panelButton.style.justifyContent = 'center';
                 panelButton.style.marginRight = '5px';
                 panelButton.innerHTML = '<svg width="30" height="30" viewBox="0 0 448 448" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M392 0H56C25.0721 0 0 25.0721 0 56V392C0 422.928 25.0721 448 56 448H392C422.928 448 448 422.928 448 392V56C448 25.0721 422.928 0 392 0Z" fill="#8F0000"/><path d="M224 90.1875C156.292 90.1875 103.25 121.13 103.25 160.625V281.375C103.25 320.87 156.292 351.812 224 351.812C291.708 351.812 344.75 320.87 344.75 281.375V160.625C344.75 121.13 291.708 90.1875 224 90.1875ZM324.625 221C324.625 233.1 314.713 245.439 297.444 254.86C277.998 265.464 251.911 271.312 224 271.312C196.089 271.312 170.002 265.464 150.556 254.86C133.287 245.439 123.375 233.1 123.375 221V200.07C144.833 218.937 181.524 231.062 224 231.062C266.476 231.062 303.167 218.887 324.625 200.07V221ZM150.556 126.765C170.002 116.161 196.089 110.312 224 110.312C251.911 110.312 277.998 116.161 297.444 126.765C314.713 136.186 324.625 148.525 324.625 160.625C324.625 172.725 314.713 185.064 297.444 194.485C277.998 205.089 251.911 210.938 224 210.938C196.089 210.938 170.002 205.089 150.556 194.485C133.287 185.064 123.375 172.725 123.375 160.625C123.375 148.525 133.287 136.186 150.556 126.765ZM297.444 315.235C277.998 325.839 251.911 331.688 224 331.688C196.089 331.688 170.002 325.839 150.556 315.235C133.287 305.814 123.375 293.475 123.375 281.375V260.445C144.833 279.312 181.524 291.438 224 291.438C266.476 291.438 303.167 279.262 324.625 260.445V281.375C324.625 293.475 314.713 305.814 297.444 315.235Z" fill="white"/></svg>';
-                
+
                 // Insert before the target button (menu or deploy)
                 targetButton.parentElement.insertBefore(panelButton, targetButton);
             } else {
@@ -43,7 +43,7 @@
                 setTimeout(addPanelButton, 500);
             }
         }
-        
+
         // Try to add button when DOM is ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', addPanelButton);
@@ -52,6 +52,24 @@
             setTimeout(addPanelButton, 100);
         }
     })();
+</script>
+
+<!-- Node-RED Auth Helper -->
+<script type="text/javascript">
+    // Helper function to get Node-RED auth tokens from localStorage
+    // This matches the pattern used in lib/admin/src/api/index.js
+    function getNodeREDAuthTokens() {
+        try {
+            // Node-RED stores auth tokens based on the admin root path
+            const adminPath = ''; // Node-RED admin root is typically '/'
+            const suffix = adminPath.replace(/\//g, '-');
+            const tokens = localStorage.getItem('auth-tokens' + suffix);
+            return tokens ? JSON.parse(tokens) : null;
+        } catch (error) {
+            console.warn('Failed to parse auth tokens:', error);
+            return null;
+        }
+    }
 </script>
 
 <!-- Panel Query Node -->
@@ -75,30 +93,21 @@
         },
         oneditprepare: function() {
             const node = this;
-            
+
             // Initialize typed input for query
             $("#node-input-query").typedInput({
                 type: "json",
                 types: ["json"]
             });
-            
-            // Panel internal token for authentication
-            let panelInternalToken = null;
-            
-            // Load internal token
-            function loadInternalToken() {
-                return $.getJSON('/panel/internal-token')
-                    .done(function(response) {
-                        panelInternalToken = response.token;
-                    })
-                    .fail(function() {
-                        console.warn('Could not load panel internal token');
-                    });
-            }
-            
+
             // Load databases for dropdown
             function loadDatabases() {
-                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                // Get Node-RED auth tokens from localStorage (same as admin UI)
+                const tokens = getNodeREDAuthTokens();
+                const headers = tokens && tokens.access_token
+                    ? { 'Authorization': `Bearer ${tokens.access_token}` }
+                    : {};
+
                 $.ajax({
                     url: '/panel/node-databases',
                     type: 'GET',
@@ -117,15 +126,23 @@
                         // Load collections after database is set
                         loadCollections();
                     })
-                    .fail(function() {
-                        console.warn('Could not load databases for dropdown');
+                    .fail(function(xhr) {
+                        if (xhr.status === 401) {
+                            console.error('Authentication required. Please log in to Node-RED.');
+                        } else {
+                            console.warn('Could not load databases for dropdown');
+                        }
                     });
             }
-            
+
             // Load collections for dropdown based on selected database
             function loadCollections() {
                 const database = $("#node-input-database").val() || 'master';
-                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                const tokens = getNodeREDAuthTokens();
+                const headers = tokens && tokens.access_token
+                    ? { 'Authorization': `Bearer ${tokens.access_token}` }
+                    : {};
+
                 $.ajax({
                     url: `/panel/node-collections?database=${database}`,
                     type: 'GET',
@@ -142,21 +159,23 @@
                             select.val(node.collection);
                         }
                     })
-                    .fail(function() {
-                        console.warn('Could not load collections for dropdown');
+                    .fail(function(xhr) {
+                        if (xhr.status === 401) {
+                            console.error('Authentication required. Please log in to Node-RED.');
+                        } else {
+                            console.warn('Could not load collections for dropdown');
+                        }
                     });
             }
-            
+
             // Handle database selection change
             $("#node-input-database").change(function() {
                 loadCollections();
             });
-            
-            // Load internal token first, then databases and collections
-            loadInternalToken().always(function() {
-                loadDatabases();
-            });
-            
+
+            // Initialize - call directly, no token loading needed
+            loadDatabases();
+
             // Handle useMsg checkbox changes
             function toggleMsgOptions() {
                 const useMsg = $("#node-input-useMsg").prop('checked');
@@ -168,7 +187,7 @@
                     $("#msg-config").hide();
                 }
             }
-            
+
             $("#node-input-useMsg").change(toggleMsgOptions);
             toggleMsgOptions(); // Initial state
         }
@@ -273,24 +292,14 @@
         },
         oneditprepare: function() {
             const node = this;
-            
-            // Panel internal token for authentication
-            let panelInternalToken = null;
-            
-            // Load internal token
-            function loadInternalToken() {
-                return $.getJSON('/panel/internal-token')
-                    .done(function(response) {
-                        panelInternalToken = response.token;
-                    })
-                    .fail(function() {
-                        console.warn('Could not load panel internal token');
-                    });
-            }
-            
+
             // Load databases for dropdown
             function loadDatabases() {
-                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                const tokens = getNodeREDAuthTokens();
+                const headers = tokens && tokens.access_token
+                    ? { 'Authorization': `Bearer ${tokens.access_token}` }
+                    : {};
+
                 $.ajax({
                     url: '/panel/node-databases',
                     type: 'GET',
@@ -309,15 +318,23 @@
                         // Load collections after database is set
                         loadCollections();
                     })
-                    .fail(function() {
-                        console.warn('Could not load databases for dropdown');
+                    .fail(function(xhr) {
+                        if (xhr.status === 401) {
+                            console.error('Authentication required. Please log in to Node-RED.');
+                        } else {
+                            console.warn('Could not load databases for dropdown');
+                        }
                     });
             }
-            
+
             // Load collections for dropdown based on selected database
             function loadCollections() {
                 const database = $("#node-input-database").val() || 'master';
-                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                const tokens = getNodeREDAuthTokens();
+                const headers = tokens && tokens.access_token
+                    ? { 'Authorization': `Bearer ${tokens.access_token}` }
+                    : {};
+
                 $.ajax({
                     url: `/panel/node-collections?database=${database}`,
                     type: 'GET',
@@ -334,21 +351,23 @@
                             select.val(node.collection);
                         }
                     })
-                    .fail(function() {
-                        console.warn('Could not load collections for dropdown');
+                    .fail(function(xhr) {
+                        if (xhr.status === 401) {
+                            console.error('Authentication required. Please log in to Node-RED.');
+                        } else {
+                            console.warn('Could not load collections for dropdown');
+                        }
                     });
             }
-            
+
             // Handle database selection change
             $("#node-input-database").change(function() {
                 loadCollections();
             });
-            
-            // Load internal token first, then databases and collections
-            loadInternalToken().always(function() {
-                loadDatabases();
-            });
-            
+
+            // Initialize - call directly
+            loadDatabases();
+
             // Initialize typed input for data (insert node)
             if ($("#node-input-data").length) {
                 $("#node-input-data").typedInput({
@@ -356,7 +375,7 @@
                     types: ["json"]
                 });
             }
-            
+
             // Handle useMsg checkbox changes
             function toggleMsgOptions() {
                 const useMsg = $("#node-input-useMsg").prop('checked');
@@ -368,7 +387,7 @@
                     $("#msg-config").hide();
                 }
             }
-            
+
             $("#node-input-useMsg").change(toggleMsgOptions);
             toggleMsgOptions(); // Initial state
         }
@@ -464,24 +483,14 @@
         },
         oneditprepare: function() {
             const node = this;
-            
-            // Panel internal token for authentication
-            let panelInternalToken = null;
-            
-            // Load internal token
-            function loadInternalToken() {
-                return $.getJSON('/panel/internal-token')
-                    .done(function(response) {
-                        panelInternalToken = response.token;
-                    })
-                    .fail(function() {
-                        console.warn('Could not load panel internal token');
-                    });
-            }
-            
+
             // Load databases for dropdown
             function loadDatabases() {
-                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                const tokens = getNodeREDAuthTokens();
+                const headers = tokens && tokens.access_token
+                    ? { 'Authorization': `Bearer ${tokens.access_token}` }
+                    : {};
+
                 $.ajax({
                     url: '/panel/node-databases',
                     type: 'GET',
@@ -500,15 +509,23 @@
                         // Load collections after database is set
                         loadCollections();
                     })
-                    .fail(function() {
-                        console.warn('Could not load databases for dropdown');
+                    .fail(function(xhr) {
+                        if (xhr.status === 401) {
+                            console.error('Authentication required. Please log in to Node-RED.');
+                        } else {
+                            console.warn('Could not load databases for dropdown');
+                        }
                     });
             }
-            
+
             // Load collections for dropdown based on selected database
             function loadCollections() {
                 const database = $("#node-input-database").val() || 'master';
-                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                const tokens = getNodeREDAuthTokens();
+                const headers = tokens && tokens.access_token
+                    ? { 'Authorization': `Bearer ${tokens.access_token}` }
+                    : {};
+
                 $.ajax({
                     url: `/panel/node-collections?database=${database}`,
                     type: 'GET',
@@ -525,21 +542,23 @@
                             select.val(node.collection);
                         }
                     })
-                    .fail(function() {
-                        console.warn('Could not load collections for dropdown');
+                    .fail(function(xhr) {
+                        if (xhr.status === 401) {
+                            console.error('Authentication required. Please log in to Node-RED.');
+                        } else {
+                            console.warn('Could not load collections for dropdown');
+                        }
                     });
             }
-            
+
             // Handle database selection change
             $("#node-input-database").change(function() {
                 loadCollections();
             });
-            
-            // Load internal token first, then databases and collections
-            loadInternalToken().always(function() {
-                loadDatabases();
-            });
-            
+
+            // Initialize - call directly
+            loadDatabases();
+
             // Initialize typed input for data (update node)
             if ($("#node-input-data").length) {
                 $("#node-input-data").typedInput({
@@ -547,7 +566,7 @@
                     types: ["json"]
                 });
             }
-            
+
             // Handle useMsg checkbox changes
             function toggleMsgOptions() {
                 const useMsg = $("#node-input-useMsg").prop('checked');
@@ -559,7 +578,7 @@
                     $("#msg-config").hide();
                 }
             }
-            
+
             $("#node-input-useMsg").change(toggleMsgOptions);
             toggleMsgOptions(); // Initial state
         }
@@ -655,24 +674,14 @@
         },
         oneditprepare: function() {
             const node = this;
-            
-            // Panel internal token for authentication
-            let panelInternalToken = null;
-            
-            // Load internal token
-            function loadInternalToken() {
-                return $.getJSON('/panel/internal-token')
-                    .done(function(response) {
-                        panelInternalToken = response.token;
-                    })
-                    .fail(function() {
-                        console.warn('Could not load panel internal token');
-                    });
-            }
-            
+
             // Load databases for dropdown
             function loadDatabases() {
-                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                const tokens = getNodeREDAuthTokens();
+                const headers = tokens && tokens.access_token
+                    ? { 'Authorization': `Bearer ${tokens.access_token}` }
+                    : {};
+
                 $.ajax({
                     url: '/panel/node-databases',
                     type: 'GET',
@@ -691,15 +700,23 @@
                         // Load collections after database is set
                         loadCollections();
                     })
-                    .fail(function() {
-                        console.warn('Could not load databases for dropdown');
+                    .fail(function(xhr) {
+                        if (xhr.status === 401) {
+                            console.error('Authentication required. Please log in to Node-RED.');
+                        } else {
+                            console.warn('Could not load databases for dropdown');
+                        }
                     });
             }
-            
+
             // Load collections for dropdown based on selected database
             function loadCollections() {
                 const database = $("#node-input-database").val() || 'master';
-                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                const tokens = getNodeREDAuthTokens();
+                const headers = tokens && tokens.access_token
+                    ? { 'Authorization': `Bearer ${tokens.access_token}` }
+                    : {};
+
                 $.ajax({
                     url: `/panel/node-collections?database=${database}`,
                     type: 'GET',
@@ -716,21 +733,23 @@
                             select.val(node.collection);
                         }
                     })
-                    .fail(function() {
-                        console.warn('Could not load collections for dropdown');
+                    .fail(function(xhr) {
+                        if (xhr.status === 401) {
+                            console.error('Authentication required. Please log in to Node-RED.');
+                        } else {
+                            console.warn('Could not load collections for dropdown');
+                        }
                     });
             }
-            
+
             // Handle database selection change
             $("#node-input-database").change(function() {
                 loadCollections();
             });
-            
-            // Load internal token first, then databases and collections
-            loadInternalToken().always(function() {
-                loadDatabases();
-            });
-            
+
+            // Initialize - call directly
+            loadDatabases();
+
             // Handle useMsg checkbox changes
             function toggleMsgOptions() {
                 const useMsg = $("#node-input-useMsg").prop('checked');
@@ -742,7 +761,7 @@
                     $("#msg-config").hide();
                 }
             }
-            
+
             $("#node-input-useMsg").change(toggleMsgOptions);
             toggleMsgOptions(); // Initial state
         }
@@ -848,12 +867,7 @@
             $("#node-input-database").change(function() {
                 loadCollections();
             });
-            
-            // Load internal token first, then databases and collections
-            loadInternalToken().always(function() {
-                loadDatabases();
-            });
-            
+
             // Collection change handler
             $('#node-input-collection').on('change', function() {
                 const collection = $(this).val();
@@ -864,35 +878,25 @@
                     $('#matchFields-section, #operation-mode-section, #match-preview-section').hide();
                 }
             });
-            
+
             // Field selection change handler
             $(document).on('change', '#field-checkboxes input[type="checkbox"]', function() {
                 updateMatchPreview();
                 togglePreviewSection();
             });
-            
+
             // Mode change handler
             $('input[name="node-input-mode"]').on('change', function() {
                 updateMatchPreview();
             });
-            
-            // Panel internal token for authentication
-            let panelInternalToken = null;
-            
-            // Load internal token
-            function loadInternalToken() {
-                return $.getJSON('/panel/internal-token')
-                    .done(function(response) {
-                        panelInternalToken = response.token;
-                    })
-                    .fail(function() {
-                        console.warn('Could not load panel internal token');
-                    });
-            }
-            
+
             // Load databases for dropdown
             function loadDatabases() {
-                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                const tokens = getNodeREDAuthTokens();
+                const headers = tokens && tokens.access_token
+                    ? { 'Authorization': `Bearer ${tokens.access_token}` }
+                    : {};
+
                 $.ajax({
                     url: '/panel/node-databases',
                     type: 'GET',
@@ -911,14 +915,22 @@
                         // Load collections after database is set
                         loadCollections();
                     })
-                    .fail(function() {
-                        console.warn('Could not load databases for dropdown');
+                    .fail(function(xhr) {
+                        if (xhr.status === 401) {
+                            console.error('Authentication required. Please log in to Node-RED.');
+                        } else {
+                            console.warn('Could not load databases for dropdown');
+                        }
                     });
             }
-            
+
             function loadCollections() {
                 const database = $("#node-input-database").val() || 'master';
-                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                const tokens = getNodeREDAuthTokens();
+                const headers = tokens && tokens.access_token
+                    ? { 'Authorization': `Bearer ${tokens.access_token}` }
+                    : {};
+
                 $.ajax({
                     url: `/panel/node-collections?database=${database}`,
                     type: 'GET',
@@ -931,20 +943,33 @@
                             const selected = collection === node.collection ? 'selected' : '';
                             select.append(`<option value="${collection}" ${selected}>${collection}</option>`);
                         });
-                        
+
                         // Trigger change if collection was pre-selected
                         if (node.collection) {
                             select.trigger('change');
                         }
                     })
-                    .fail(function() {
-                        console.error('Failed to load collections');
+                    .fail(function(xhr) {
+                        if (xhr.status === 401) {
+                            console.error('Authentication required. Please log in to Node-RED.');
+                        } else {
+                            console.error('Failed to load collections');
+                        }
                     });
             }
-            
+
             function loadCollectionFields(collection) {
                 const database = $("#node-input-database").val() || 'master';
-                $.getJSON(`/panel/node-collection-fields?collection=${collection}&database=${database}`)
+                const tokens = getNodeREDAuthTokens();
+                const headers = tokens && tokens.access_token
+                    ? { 'Authorization': `Bearer ${tokens.access_token}` }
+                    : {};
+
+                $.ajax({
+                    url: `/panel/node-collection-fields?collection=${collection}&database=${database}`,
+                    type: 'GET',
+                    headers: headers
+                })
                     .done(function(fields) {
                         const container = $('#field-checkboxes');
                         container.empty();
@@ -968,11 +993,18 @@
                         updateMatchPreview();
                         togglePreviewSection();
                     })
-                    .fail(function() {
-                        console.error('Failed to load collection fields');
+                    .fail(function(xhr) {
+                        if (xhr.status === 401) {
+                            console.error('Authentication required. Please log in to Node-RED.');
+                        } else {
+                            console.error('Failed to load collection fields');
+                        }
                     });
             }
-            
+
+            // Initialize - call directly
+            loadDatabases();
+
             function updateMatchPreview() {
                 const selectedFields = $('#field-checkboxes input:checked').map(function() {
                     return $(this).val();
@@ -1258,24 +1290,14 @@
         },
         oneditprepare: function() {
             const node = this;
-            
-            // Panel internal token for authentication
-            let panelInternalToken = null;
-            
-            // Load internal token
-            function loadInternalToken() {
-                return $.getJSON('/panel/internal-token')
-                    .done(function(response) {
-                        panelInternalToken = response.token;
-                    })
-                    .fail(function() {
-                        console.warn('Could not load panel internal token');
-                    });
-            }
-            
+
             // Load databases for dropdown
             function loadDatabases() {
-                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                const tokens = getNodeREDAuthTokens();
+                const headers = tokens && tokens.access_token
+                    ? { 'Authorization': `Bearer ${tokens.access_token}` }
+                    : {};
+
                 $.ajax({
                     url: '/panel/node-databases',
                     type: 'GET',
@@ -1294,15 +1316,23 @@
                         // Load collections after database is set
                         loadEventCollections();
                     })
-                    .fail(function() {
-                        console.warn('Could not load databases for dropdown');
+                    .fail(function(xhr) {
+                        if (xhr.status === 401) {
+                            console.error('Authentication required. Please log in to Node-RED.');
+                        } else {
+                            console.warn('Could not load databases for dropdown');
+                        }
                     });
             }
-            
+
             // Load event-enabled collections for dropdown
             function loadEventCollections() {
                 const database = $("#node-input-database").val() || 'master';
-                const headers = panelInternalToken ? { 'X-Internal-Token': panelInternalToken } : {};
+                const tokens = getNodeREDAuthTokens();
+                const headers = tokens && tokens.access_token
+                    ? { 'Authorization': `Bearer ${tokens.access_token}` }
+                    : {};
+
                 $.ajax({
                     url: `/panel/event-collections?database=${database}`,
                     type: 'GET',
@@ -1319,21 +1349,24 @@
                             select.val(node.collection);
                         }
                     })
-                    .fail(function() {
-                        console.warn('Could not load event-enabled collections for dropdown');
-                        $("#node-input-collection").append('<option value="">No event-enabled collections found</option>');
+                    .fail(function(xhr) {
+                        if (xhr.status === 401) {
+                            console.error('Authentication required. Please log in to Node-RED.');
+                            $("#node-input-collection").append('<option value="">Authentication required</option>');
+                        } else {
+                            console.warn('Could not load event-enabled collections for dropdown');
+                            $("#node-input-collection").append('<option value="">No event-enabled collections found</option>');
+                        }
                     });
             }
-            
+
             // Handle database selection change
             $("#node-input-database").change(function() {
                 loadEventCollections();
             });
-            
-            // Load internal token first, then databases and collections
-            loadInternalToken().always(function() {
-                loadDatabases();
-            });
+
+            // Initialize - call directly
+            loadDatabases();
             
             // Initialize event type checkboxes
             const eventTypes = node.eventTypes || ["INSERT", "UPDATE", "DELETE"];
