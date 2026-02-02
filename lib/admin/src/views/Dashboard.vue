@@ -36,7 +36,7 @@
         <div class="flex items-center gap-4">
           <i class="ph ph-hard-drive text-3xl" :class="statusIconClass"></i>
           <div>
-            <h3 class="text-2xl font-bold text-gray-900">{{ systemInfo?.database?.status || 'Unknown' }}</h3>
+            <h3 class="text-2xl font-bold text-gray-900 capitalize">{{ systemInfo?.database?.status || 'Loading...' }}</h3>
             <p class="text-gray-600">Database Status</p>
           </div>
         </div>
@@ -154,6 +154,7 @@ const totalRecords = computed(() => {
 })
 const recentActivity = ref([])
 const loadingActivity = ref(false)
+const systemInfo = ref(null)
 
 
 const recentCollections = computed(() => {
@@ -170,7 +171,11 @@ const tableColumns = [
 ]
 
 const statusIconClass = computed(() => {
-  return 'text-green-600' // Default to healthy status for collections/records
+  const status = systemInfo.value?.database?.status
+  if (status === 'connected') return 'text-green-600'
+  if (status === 'disconnected') return 'text-red-600'
+  if (status === 'not_found') return 'text-yellow-600'
+  return 'text-gray-600' // Unknown status
 })
 
 const formatDate = (dateString) => {
@@ -187,6 +192,16 @@ const formatFileSize = (bytes) => {
 
 const viewCollection = (name) => {
   router.push(`/panel/collections/${name}`)
+}
+
+const fetchSystemInfo = async () => {
+  try {
+    const response = await api.get('/system')
+    systemInfo.value = response.data
+  } catch (error) {
+    console.error('Failed to fetch system info:', error)
+    systemInfo.value = null
+  }
 }
 
 const fetchRecentActivity = async () => {
@@ -296,14 +311,16 @@ const formatRelativeTime = (dateString) => {
 watch(() => databasesStore.currentDatabase, async () => {
   await Promise.all([
     collectionsStore.fetchCollections(),
-    fetchRecentActivity()
+    fetchRecentActivity(),
+    fetchSystemInfo()
   ])
 })
 
 onMounted(async () => {
   await Promise.all([
     collectionsStore.fetchCollections(),
-    fetchRecentActivity()
+    fetchRecentActivity(),
+    fetchSystemInfo()
   ])
 })
 </script>
