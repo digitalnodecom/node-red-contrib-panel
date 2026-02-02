@@ -116,6 +116,7 @@
                     .done(function(databases) {
                         const select = $("#node-input-database");
                         select.empty();
+                        select.append('<option value="">Select database...</option>');
                         databases.forEach(function(db) {
                             const selected = db.id === node.database ? 'selected' : '';
                             select.append(`<option value="${db.id}" ${selected}>${db.name}</option>`);
@@ -123,8 +124,8 @@
                         if (node.database) {
                             select.val(node.database);
                         }
-                        // Load collections after database is set
-                        loadCollections();
+                        // Toggle collection dropdown visibility based on database selection
+                        toggleCollectionDropdown();
                     })
                     .fail(function(xhr) {
                         if (xhr.status === 401) {
@@ -151,12 +152,16 @@
                     .done(function(collections) {
                         const select = $("#node-input-collection");
                         select.empty();
-                        select.append('<option value="">Select collection...</option>');
-                        collections.forEach(function(collection) {
-                            select.append(`<option value="${collection}">${collection}</option>`);
-                        });
-                        if (node.collection) {
-                            select.val(node.collection);
+                        if (collections.length === 0) {
+                            select.append('<option value="">No collections found. Please create a collection first.</option>');
+                        } else {
+                            select.append('<option value="">Select collection...</option>');
+                            collections.forEach(function(collection) {
+                                select.append(`<option value="${collection}">${collection}</option>`);
+                            });
+                            if (node.collection) {
+                                select.val(node.collection);
+                            }
                         }
                     })
                     .fail(function(xhr) {
@@ -168,9 +173,24 @@
                     });
             }
 
+            // Toggle collection dropdown visibility based on database selection
+            function toggleCollectionDropdown() {
+                const database = $("#node-input-database").val();
+                const collectionRow = $("#node-input-collection").closest('.form-row');
+
+                if (!database || database === '') {
+                    // Hide collection dropdown when no database selected
+                    collectionRow.hide();
+                } else {
+                    // Show and load collections when database is selected
+                    collectionRow.show();
+                    loadCollections();
+                }
+            }
+
             // Handle database selection change
             $("#node-input-database").change(function() {
-                loadCollections();
+                toggleCollectionDropdown();
             });
 
             // Initialize - call directly, no token loading needed
@@ -210,7 +230,7 @@
         <div class="form-row">
             <label for="node-input-database"><i class="fa fa-server"></i> Database</label>
             <select id="node-input-database" style="width:70%;">
-                <option value="master">Loading databases...</option>
+                <option value="">Select database...</option>
             </select>
             <div style="font-size: 11px; color: #666; margin-top: 4px;">
                 <i class="fa fa-info-circle"></i> Optional: Defaults to master. Use <code>msg.database</code> to override.
@@ -219,7 +239,7 @@
         <div class="form-row">
             <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
             <select id="node-input-collection" style="width:70%;">
-                <option value="">Loading collections...</option>
+                <option value="">Select collection...</option>
             </select>
             <div style="font-size: 11px; color: #666; margin-top: 4px;">
                 <i class="fa fa-info-circle"></i> Required unless provided via <code>msg.collection</code>.
@@ -308,6 +328,7 @@
                     .done(function(databases) {
                         const select = $("#node-input-database");
                         select.empty();
+                        select.append('<option value="">Select database...</option>');
                         databases.forEach(function(db) {
                             const selected = db.id === node.database ? 'selected' : '';
                             select.append(`<option value="${db.id}" ${selected}>${db.name}</option>`);
@@ -315,8 +336,8 @@
                         if (node.database) {
                             select.val(node.database);
                         }
-                        // Load collections after database is set
-                        loadCollections();
+                        // Toggle collection dropdown visibility based on database selection
+                        toggleCollectionDropdown();
                     })
                     .fail(function(xhr) {
                         if (xhr.status === 401) {
@@ -343,12 +364,16 @@
                     .done(function(collections) {
                         const select = $("#node-input-collection");
                         select.empty();
-                        select.append('<option value="">Select collection...</option>');
-                        collections.forEach(function(collection) {
-                            select.append(`<option value="${collection}">${collection}</option>`);
-                        });
-                        if (node.collection) {
-                            select.val(node.collection);
+                        if (collections.length === 0) {
+                            select.append('<option value="">No collections found. Please create a collection first.</option>');
+                        } else {
+                            select.append('<option value="">Select collection...</option>');
+                            collections.forEach(function(collection) {
+                                select.append(`<option value="${collection}">${collection}</option>`);
+                            });
+                            if (node.collection) {
+                                select.val(node.collection);
+                            }
                         }
                     })
                     .fail(function(xhr) {
@@ -360,9 +385,24 @@
                     });
             }
 
+            // Toggle collection dropdown visibility based on database selection
+            function toggleCollectionDropdown() {
+                const database = $("#node-input-database").val();
+                const collectionRow = $("#node-input-collection").closest('.form-row');
+
+                if (!database || database === '') {
+                    // Hide collection dropdown when no database selected
+                    collectionRow.hide();
+                } else {
+                    // Show and load collections when database is selected
+                    collectionRow.show();
+                    loadCollections();
+                }
+            }
+
             // Handle database selection change
             $("#node-input-database").change(function() {
-                loadCollections();
+                toggleCollectionDropdown();
             });
 
             // Initialize - call directly
@@ -410,7 +450,7 @@
         <div class="form-row">
             <label for="node-input-database"><i class="fa fa-server"></i> Database</label>
             <select id="node-input-database" style="width:70%;">
-                <option value="master">Loading databases...</option>
+                <option value="">Select database...</option>
             </select>
             <div style="font-size: 11px; color: #666; margin-top: 4px;">
                 <i class="fa fa-info-circle"></i> Optional: Defaults to master. Use <code>msg.database</code> to override.
@@ -419,7 +459,7 @@
         <div class="form-row">
             <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
             <select id="node-input-collection" style="width:70%;">
-                <option value="">Loading collections...</option>
+                <option value="">Select collection...</option>
             </select>
             <div style="font-size: 11px; color: #666; margin-top: 4px;">
                 <i class="fa fa-info-circle"></i> Required unless provided via <code>msg.collection</code>.
@@ -499,6 +539,7 @@
                     .done(function(databases) {
                         const select = $("#node-input-database");
                         select.empty();
+                        select.append('<option value="">Select database...</option>');
                         databases.forEach(function(db) {
                             const selected = db.id === node.database ? 'selected' : '';
                             select.append(`<option value="${db.id}" ${selected}>${db.name}</option>`);
@@ -506,8 +547,8 @@
                         if (node.database) {
                             select.val(node.database);
                         }
-                        // Load collections after database is set
-                        loadCollections();
+                        // Toggle collection dropdown visibility based on database selection
+                        toggleCollectionDropdown();
                     })
                     .fail(function(xhr) {
                         if (xhr.status === 401) {
@@ -534,12 +575,16 @@
                     .done(function(collections) {
                         const select = $("#node-input-collection");
                         select.empty();
-                        select.append('<option value="">Select collection...</option>');
-                        collections.forEach(function(collection) {
-                            select.append(`<option value="${collection}">${collection}</option>`);
-                        });
-                        if (node.collection) {
-                            select.val(node.collection);
+                        if (collections.length === 0) {
+                            select.append('<option value="">No collections found. Please create a collection first.</option>');
+                        } else {
+                            select.append('<option value="">Select collection...</option>');
+                            collections.forEach(function(collection) {
+                                select.append(`<option value="${collection}">${collection}</option>`);
+                            });
+                            if (node.collection) {
+                                select.val(node.collection);
+                            }
                         }
                     })
                     .fail(function(xhr) {
@@ -551,9 +596,24 @@
                     });
             }
 
+            // Toggle collection dropdown visibility based on database selection
+            function toggleCollectionDropdown() {
+                const database = $("#node-input-database").val();
+                const collectionRow = $("#node-input-collection").closest('.form-row');
+
+                if (!database || database === '') {
+                    // Hide collection dropdown when no database selected
+                    collectionRow.hide();
+                } else {
+                    // Show and load collections when database is selected
+                    collectionRow.show();
+                    loadCollections();
+                }
+            }
+
             // Handle database selection change
             $("#node-input-database").change(function() {
-                loadCollections();
+                toggleCollectionDropdown();
             });
 
             // Initialize - call directly
@@ -601,7 +661,7 @@
         <div class="form-row">
             <label for="node-input-database"><i class="fa fa-server"></i> Database</label>
             <select id="node-input-database" style="width:70%;">
-                <option value="master">Loading databases...</option>
+                <option value="">Select database...</option>
             </select>
             <div style="font-size: 11px; color: #666; margin-top: 4px;">
                 <i class="fa fa-info-circle"></i> Optional: Defaults to master. Use <code>msg.database</code> to override.
@@ -610,7 +670,7 @@
         <div class="form-row">
             <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
             <select id="node-input-collection" style="width:70%;">
-                <option value="">Loading collections...</option>
+                <option value="">Select collection...</option>
             </select>
             <div style="font-size: 11px; color: #666; margin-top: 4px;">
                 <i class="fa fa-info-circle"></i> Required unless provided via <code>msg.collection</code>.
@@ -690,6 +750,7 @@
                     .done(function(databases) {
                         const select = $("#node-input-database");
                         select.empty();
+                        select.append('<option value="">Select database...</option>');
                         databases.forEach(function(db) {
                             const selected = db.id === node.database ? 'selected' : '';
                             select.append(`<option value="${db.id}" ${selected}>${db.name}</option>`);
@@ -697,8 +758,8 @@
                         if (node.database) {
                             select.val(node.database);
                         }
-                        // Load collections after database is set
-                        loadCollections();
+                        // Toggle collection dropdown visibility based on database selection
+                        toggleCollectionDropdown();
                     })
                     .fail(function(xhr) {
                         if (xhr.status === 401) {
@@ -725,12 +786,16 @@
                     .done(function(collections) {
                         const select = $("#node-input-collection");
                         select.empty();
-                        select.append('<option value="">Select collection...</option>');
-                        collections.forEach(function(collection) {
-                            select.append(`<option value="${collection}">${collection}</option>`);
-                        });
-                        if (node.collection) {
-                            select.val(node.collection);
+                        if (collections.length === 0) {
+                            select.append('<option value="">No collections found. Please create a collection first.</option>');
+                        } else {
+                            select.append('<option value="">Select collection...</option>');
+                            collections.forEach(function(collection) {
+                                select.append(`<option value="${collection}">${collection}</option>`);
+                            });
+                            if (node.collection) {
+                                select.val(node.collection);
+                            }
                         }
                     })
                     .fail(function(xhr) {
@@ -742,9 +807,24 @@
                     });
             }
 
+            // Toggle collection dropdown visibility based on database selection
+            function toggleCollectionDropdown() {
+                const database = $("#node-input-database").val();
+                const collectionRow = $("#node-input-collection").closest('.form-row');
+
+                if (!database || database === '') {
+                    // Hide collection dropdown when no database selected
+                    collectionRow.hide();
+                } else {
+                    // Show and load collections when database is selected
+                    collectionRow.show();
+                    loadCollections();
+                }
+            }
+
             // Handle database selection change
             $("#node-input-database").change(function() {
-                loadCollections();
+                toggleCollectionDropdown();
             });
 
             // Initialize - call directly
@@ -784,7 +864,7 @@
         <div class="form-row">
             <label for="node-input-database"><i class="fa fa-server"></i> Database</label>
             <select id="node-input-database" style="width:70%;">
-                <option value="master">Loading databases...</option>
+                <option value="">Select database...</option>
             </select>
             <div style="font-size: 11px; color: #666; margin-top: 4px;">
                 <i class="fa fa-info-circle"></i> Optional: Defaults to master. Use <code>msg.database</code> to override.
@@ -793,7 +873,7 @@
         <div class="form-row">
             <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
             <select id="node-input-collection" style="width:70%;">
-                <option value="">Loading collections...</option>
+                <option value="">Select collection...</option>
             </select>
             <div style="font-size: 11px; color: #666; margin-top: 4px;">
                 <i class="fa fa-info-circle"></i> Required unless provided via <code>msg.collection</code>.
@@ -865,7 +945,7 @@
             
             // Handle database selection change
             $("#node-input-database").change(function() {
-                loadCollections();
+                toggleCollectionDropdown();
             });
 
             // Collection change handler
@@ -905,6 +985,7 @@
                     .done(function(databases) {
                         const select = $("#node-input-database");
                         select.empty();
+                        select.append('<option value="">Select database...</option>');
                         databases.forEach(function(db) {
                             const selected = db.id === node.database ? 'selected' : '';
                             select.append(`<option value="${db.id}" ${selected}>${db.name}</option>`);
@@ -912,8 +993,8 @@
                         if (node.database) {
                             select.val(node.database);
                         }
-                        // Load collections after database is set
-                        loadCollections();
+                        // Toggle collection dropdown visibility based on database selection
+                        toggleCollectionDropdown();
                     })
                     .fail(function(xhr) {
                         if (xhr.status === 401) {
@@ -938,15 +1019,20 @@
                 })
                     .done(function(collections) {
                         const select = $('#node-input-collection');
-                        select.empty().append('<option value="">Select collection...</option>');
-                        collections.forEach(function(collection) {
-                            const selected = collection === node.collection ? 'selected' : '';
-                            select.append(`<option value="${collection}" ${selected}>${collection}</option>`);
-                        });
+                        select.empty();
+                        if (collections.length === 0) {
+                            select.append('<option value="">No collections found. Please create a collection first.</option>');
+                        } else {
+                            select.append('<option value="">Select collection...</option>');
+                            collections.forEach(function(collection) {
+                                const selected = collection === node.collection ? 'selected' : '';
+                                select.append(`<option value="${collection}" ${selected}>${collection}</option>`);
+                            });
 
-                        // Trigger change if collection was pre-selected
-                        if (node.collection) {
-                            select.trigger('change');
+                            // Trigger change if collection was pre-selected
+                            if (node.collection) {
+                                select.trigger('change');
+                            }
                         }
                     })
                     .fail(function(xhr) {
@@ -956,6 +1042,23 @@
                             console.error('Failed to load collections');
                         }
                     });
+            }
+
+            // Toggle collection dropdown visibility based on database selection
+            function toggleCollectionDropdown() {
+                const database = $("#node-input-database").val();
+                const collectionRow = $("#node-input-collection").closest('.form-row');
+
+                if (!database || database === '') {
+                    // Hide collection dropdown when no database selected
+                    collectionRow.hide();
+                    // Also hide dependent sections
+                    $('#matchFields-section, #operation-mode-section, #match-preview-section').hide();
+                } else {
+                    // Show and load collections when database is selected
+                    collectionRow.show();
+                    loadCollections();
+                }
             }
 
             function loadCollectionFields(collection) {
@@ -1066,7 +1169,7 @@
     <div class="form-row">
         <label for="node-input-database"><i class="fa fa-server"></i> Database</label>
         <select id="node-input-database" style="width: 70%;">
-            <option value="master">Loading databases...</option>
+            <option value="">Select database...</option>
         </select>
         <div style="font-size: 11px; color: #666; margin-top: 4px;">
             <i class="fa fa-info-circle"></i> Optional: Defaults to master. Use <code>msg.database</code> to override.
@@ -1306,6 +1409,7 @@
                     .done(function(databases) {
                         const select = $("#node-input-database");
                         select.empty();
+                        select.append('<option value="">Select database...</option>');
                         databases.forEach(function(db) {
                             const selected = db.id === node.database ? 'selected' : '';
                             select.append(`<option value="${db.id}" ${selected}>${db.name}</option>`);
@@ -1313,8 +1417,8 @@
                         if (node.database) {
                             select.val(node.database);
                         }
-                        // Load collections after database is set
-                        loadEventCollections();
+                        // Toggle collection dropdown visibility based on database selection
+                        toggleCollectionDropdown();
                     })
                     .fail(function(xhr) {
                         if (xhr.status === 401) {
@@ -1341,12 +1445,16 @@
                     .done(function(collections) {
                         const select = $("#node-input-collection");
                         select.empty();
-                        select.append('<option value="">Select collection...</option>');
-                        collections.forEach(function(collection) {
-                            select.append(`<option value="${collection}">${collection}</option>`);
-                        });
-                        if (node.collection) {
-                            select.val(node.collection);
+                        if (collections.length === 0) {
+                            select.append('<option value="">No event-enabled collections found. Please enable events on a collection first.</option>');
+                        } else {
+                            select.append('<option value="">Select collection...</option>');
+                            collections.forEach(function(collection) {
+                                select.append(`<option value="${collection}">${collection}</option>`);
+                            });
+                            if (node.collection) {
+                                select.val(node.collection);
+                            }
                         }
                     })
                     .fail(function(xhr) {
@@ -1360,9 +1468,24 @@
                     });
             }
 
+            // Toggle collection dropdown visibility based on database selection
+            function toggleCollectionDropdown() {
+                const database = $("#node-input-database").val();
+                const collectionRow = $("#node-input-collection").closest('.form-row');
+
+                if (!database || database === '') {
+                    // Hide collection dropdown when no database selected
+                    collectionRow.hide();
+                } else {
+                    // Show and load collections when database is selected
+                    collectionRow.show();
+                    loadEventCollections();
+                }
+            }
+
             // Handle database selection change
             $("#node-input-database").change(function() {
-                loadEventCollections();
+                toggleCollectionDropdown();
             });
 
             // Initialize - call directly
@@ -1424,14 +1547,14 @@
     <div class="form-row">
         <label for="node-input-database"><i class="fa fa-server"></i> Database</label>
         <select id="node-input-database" style="width:70%;">
-            <option value="master">Loading databases...</option>
+            <option value="">Select database...</option>
         </select>
     </div>
-    
+
     <div class="form-row">
         <label for="node-input-collection"><i class="fa fa-database"></i> Collection</label>
         <select id="node-input-collection" style="width:70%;">
-            <option value="">Loading event-enabled collections...</option>
+            <option value="">Select collection...</option>
         </select>
     </div>
     
